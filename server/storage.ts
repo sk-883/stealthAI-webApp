@@ -51,6 +51,12 @@ export interface IStorage {
   updateEducation(id: number, data: Partial<InsertEducation>): Promise<Education | undefined>;
   deleteEducation(id: number): Promise<boolean>;
   
+  // Post Like operations
+  getLikesByPostId(postId: number): Promise<PostLike[]>;
+  getLikeByPostAndUser(postId: number, userId: number): Promise<PostLike | undefined>;
+  createLike(like: InsertPostLike): Promise<PostLike>;
+  deleteLike(id: number): Promise<boolean>;
+  
   // Extended operations
   getPostsWithUsers(): Promise<PostWithUser[]>;
   getUsersForConnections(userId: number): Promise<User[]>;
@@ -297,6 +303,63 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+  // Post Like operations
+  async getLikesByPostId(postId: number): Promise<PostLike[]> {
+    return db
+      .select()
+      .from(postLikes)
+      .where(eq(postLikes.postId, postId));
+  }
+
+  async getLikeByPostAndUser(postId: number, userId: number): Promise<PostLike | undefined> {
+    const [like] = await db
+      .select()
+      .from(postLikes)
+      .where(
+        and(
+          eq(postLikes.postId, postId),
+          eq(postLikes.userId, userId)
+        )
+      );
+    return like;
+  }
+
+  async createLike(insertLike: InsertPostLike): Promise<PostLike> {
+    const [like] = await db
+      .insert(postLikes)
+      .values(insertLike)
+      .returning();
+    
+    // Update like count
+    await db
+      .update(posts)
+      .set({ likes: db.raw(`${posts.name}.likes + 1`) })
+      .where(eq(posts.id, insertLike.postId));
+    
+    return like;
+  }
+
+  async deleteLike(id: number): Promise<boolean> {
+    const [deletedLike] = await db
+      .delete(postLikes)
+      .where(eq(postLikes.id, id))
+      .returning({
+        id: postLikes.id,
+        postId: postLikes.postId
+      });
+    
+    if (deletedLike) {
+      // Update like count
+      await db
+        .update(posts)
+        .set({ likes: db.raw(`${posts.name}.likes - 1`) })
+        .where(eq(posts.id, deletedLike.postId));
+      return true;
+    }
+    
+    return false;
+  }
+
   // Extended operations
   async getPostsWithUsers(): Promise<PostWithUser[]> {
     const postsData = await db.select().from(posts).orderBy(desc(posts.createdAt));
@@ -361,12 +424,14 @@ export class MemStorage implements IStorage {
   private comments: Map<number, Comment>;
   private experiences: Map<number, Experience>;
   private educations: Map<number, Education>;
+  private postLikes: Map<number, PostLike>;
   currentUserId: number;
   currentPostId: number;
   currentConnectionId: number;
   currentCommentId: number;
   currentExperienceId: number;
   currentEducationId: number;
+  currentPostLikeId: number;
 
   constructor() {
     this.users = new Map();
@@ -375,12 +440,14 @@ export class MemStorage implements IStorage {
     this.comments = new Map();
     this.experiences = new Map();
     this.educations = new Map();
+    this.postLikes = new Map();
     this.currentUserId = 1;
     this.currentPostId = 1;
     this.currentConnectionId = 1;
     this.currentCommentId = 1;
     this.currentExperienceId = 1;
     this.currentEducationId = 1;
+    this.currentPostLikeId = 1;
     
     // Add demo data
     this.initDemoData();
@@ -722,6 +789,56 @@ export class MemStorage implements IStorage {
 
   async deleteEducation(id: number): Promise<boolean> {
     return this.educations.delete(id);
+  }
+
+  // Post Like operations
+  async getLikesByPostId(postId: number): Promise<PostLike[]> {
+    return Array.from(this.postLikes.values())
+      .filter(like => like.postId === postId);
+  }
+
+  async getLikeByPostAndUser(postId: number, userId: number): Promise<PostLike | undefined> {
+    return Array.from(this.postLikes.values()).find(
+      like => like.postId === postId && like.userId === userId
+    );
+  }
+
+  async createLike(insertLike: InsertPostLike): Promise<PostLike> {
+    const id = this.currentPostLikeId++;
+    const now = new Date();
+    const like: PostLike = { ...insertLike, id, createdAt: now };
+    this.postLikes.set(id, like);
+    
+    // Update like count
+    const post = this.posts.get(insertLike.postId);
+    if (post) {
+      this.posts.set(post.id, {
+        ...post,
+        likes: post.likes + 1
+      });
+    }
+    
+    return like;
+  }
+
+  async deleteLike(id: number): Promise<boolean> {
+    const like = this.postLikes.get(id);
+    if (!like) return false;
+    
+    const deleted = this.postLikes.delete(id);
+    
+    // Update like count
+    if (deleted) {
+      const post = this.posts.get(like.postId);
+      if (post) {
+        this.posts.set(post.id, {
+          ...post,
+          likes: post.likes - 1
+        });
+      }
+    }
+    
+    return deleted;
   }
 
   // Extended operations

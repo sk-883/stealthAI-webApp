@@ -131,6 +131,17 @@ export const educationsRelations = relations(educations, ({ one }) => ({
   }),
 }));
 
+export const postLikesRelations = relations(postLikes, ({ one }) => ({
+  post: one(posts, {
+    fields: [postLikes.postId],
+    references: [posts.id],
+  }),
+  user: one(users, {
+    fields: [postLikes.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -183,6 +194,11 @@ export const insertEducationSchema = createInsertSchema(educations).pick({
   schoolLogo: true,
 });
 
+export const insertPostLikeSchema = createInsertSchema(postLikes).pick({
+  postId: true,
+  userId: true,
+});
+
 // Login schema
 export const loginSchema = z.object({
   username: z.string().min(3),
@@ -202,6 +218,8 @@ export type Experience = typeof experiences.$inferSelect;
 export type InsertExperience = z.infer<typeof insertExperienceSchema>;
 export type Education = typeof educations.$inferSelect;
 export type InsertEducation = z.infer<typeof insertEducationSchema>;
+export type PostLike = typeof postLikes.$inferSelect;
+export type InsertPostLike = z.infer<typeof insertPostLikeSchema>;
 export type Login = z.infer<typeof loginSchema>;
 
 // Extended Types with Relations
