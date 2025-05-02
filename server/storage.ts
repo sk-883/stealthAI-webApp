@@ -1,14 +1,14 @@
 import { 
-  users, type User, type InsertUser,
-  posts, type Post, type InsertPost,
-  connections, type Connection, type InsertConnection,
-  comments, type Comment, type InsertComment,
-  experiences, type Experience, type InsertExperience,
-  educations, type Education, type InsertEducation,
+  type User, type InsertUser,
+  type Post, type InsertPost,
+  type Connection, type InsertConnection,
+  type Comment, type InsertComment,
+  type Experience, type InsertExperience,
+  type Education, type InsertEducation,
   type PostWithUser, type UserWithConnections, type UserWithExperiences, type UserWithEducations
 } from "@shared/schema";
-import { db } from "./db";
-import { eq, and, desc, ne } from "drizzle-orm";
+import { prisma } from "./prisma";
+import { Prisma } from "@prisma/client";
 
 export interface IStorage {
   // User operations
