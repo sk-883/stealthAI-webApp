@@ -37,6 +37,20 @@ export interface IStorage {
   createComment(comment: InsertComment): Promise<Comment>;
   deleteComment(id: number): Promise<boolean>;
   
+  // Experience operations
+  getExperiencesByUserId(userId: number): Promise<Experience[]>;
+  getExperienceById(id: number): Promise<Experience | undefined>;
+  createExperience(experience: InsertExperience): Promise<Experience>;
+  updateExperience(id: number, data: Partial<InsertExperience>): Promise<Experience | undefined>;
+  deleteExperience(id: number): Promise<boolean>;
+  
+  // Education operations
+  getEducationsByUserId(userId: number): Promise<Education[]>;
+  getEducationById(id: number): Promise<Education | undefined>;
+  createEducation(education: InsertEducation): Promise<Education>;
+  updateEducation(id: number, data: Partial<InsertEducation>): Promise<Education | undefined>;
+  deleteEducation(id: number): Promise<boolean>;
+  
   // Extended operations
   getPostsWithUsers(): Promise<PostWithUser[]>;
   getUsersForConnections(userId: number): Promise<User[]>;
@@ -199,6 +213,90 @@ export class DatabaseStorage implements IStorage {
     return false;
   }
 
+  // Experience operations
+  async getExperiencesByUserId(userId: number): Promise<Experience[]> {
+    return db
+      .select()
+      .from(experiences)
+      .where(eq(experiences.userId, userId))
+      .orderBy(desc(experiences.startDate));
+  }
+
+  async getExperienceById(id: number): Promise<Experience | undefined> {
+    const [experience] = await db
+      .select()
+      .from(experiences)
+      .where(eq(experiences.id, id));
+    return experience;
+  }
+
+  async createExperience(insertExperience: InsertExperience): Promise<Experience> {
+    const [experience] = await db
+      .insert(experiences)
+      .values(insertExperience)
+      .returning();
+    return experience;
+  }
+
+  async updateExperience(id: number, data: Partial<InsertExperience>): Promise<Experience | undefined> {
+    const [updatedExperience] = await db
+      .update(experiences)
+      .set(data)
+      .where(eq(experiences.id, id))
+      .returning();
+    return updatedExperience;
+  }
+
+  async deleteExperience(id: number): Promise<boolean> {
+    const result = await db
+      .delete(experiences)
+      .where(eq(experiences.id, id))
+      .returning({ id: experiences.id });
+    return result.length > 0;
+  }
+
+  // Education operations
+  async getEducationsByUserId(userId: number): Promise<Education[]> {
+    return db
+      .select()
+      .from(educations)
+      .where(eq(educations.userId, userId))
+      .orderBy(desc(educations.startDate));
+  }
+
+  async getEducationById(id: number): Promise<Education | undefined> {
+    const [education] = await db
+      .select()
+      .from(educations)
+      .where(eq(educations.id, id));
+    return education;
+  }
+
+  async createEducation(insertEducation: InsertEducation): Promise<Education> {
+    const [education] = await db
+      .insert(educations)
+      .values(insertEducation)
+      .returning();
+    return education;
+  }
+
+  async updateEducation(id: number, data: Partial<InsertEducation>): Promise<Education | undefined> {
+    const [updatedEducation] = await db
+      .update(educations)
+      .set(data)
+      .where(eq(educations.id, id))
+      .returning();
+    return updatedEducation;
+  }
+
+  async deleteEducation(id: number): Promise<boolean> {
+    const result = await db
+      .delete(educations)
+      .where(eq(educations.id, id))
+      .returning({ id: educations.id });
+    return result.length > 0;
+  }
+
   // Extended operations
   async getPostsWithUsers(): Promise<PostWithUser[]> {
     const postsData = await db.select().from(posts).orderBy(desc(posts.createdAt));
@@ -255,20 +353,28 @@ export class MemStorage implements IStorage {
   private posts: Map<number, Post>;
   private connections: Map<number, Connection>;
   private comments: Map<number, Comment>;
+  private experiences: Map<number, Experience>;
+  private educations: Map<number, Education>;
   currentUserId: number;
   currentPostId: number;
   currentConnectionId: number;
   currentCommentId: number;
+  currentExperienceId: number;
+  currentEducationId: number;
 
   constructor() {
     this.users = new Map();
     this.posts = new Map();
     this.connections = new Map();
     this.comments = new Map();
+    this.experiences = new Map();
+    this.educations = new Map();
     this.currentUserId = 1;
     this.currentPostId = 1;
     this.currentConnectionId = 1;
     this.currentCommentId = 1;
+    this.currentExperienceId = 1;
+    this.currentEducationId = 1;
     
     // Add demo data
     this.initDemoData();
@@ -528,6 +634,88 @@ export class MemStorage implements IStorage {
     }
     
     return deleted;
+  }
+
+  // Experience operations
+  async getExperiencesByUserId(userId: number): Promise<Experience[]> {
+    return Array.from(this.experiences.values())
+      .filter(experience => experience.userId === userId)
+      .sort((a, b) => {
+        // Compare start dates (most recent first)
+        const aDate = a.startDate || '';
+        const bDate = b.startDate || '';
+        return bDate.localeCompare(aDate);
+      });
+  }
+
+  async getExperienceById(id: number): Promise<Experience | undefined> {
+    return this.experiences.get(id);
+  }
+
+  async createExperience(insertExperience: InsertExperience): Promise<Experience> {
+    const id = this.currentExperienceId++;
+    const now = new Date();
+    const experience: Experience = { 
+      ...insertExperience, 
+      id, 
+      createdAt: now 
+    };
+    this.experiences.set(id, experience);
+    return experience;
+  }
+
+  async updateExperience(id: number, data: Partial<InsertExperience>): Promise<Experience | undefined> {
+    const experience = this.experiences.get(id);
+    if (!experience) return undefined;
+    
+    const updatedExperience = { ...experience, ...data };
+    this.experiences.set(id, updatedExperience);
+    return updatedExperience;
+  }
+
+  async deleteExperience(id: number): Promise<boolean> {
+    return this.experiences.delete(id);
+  }
+
+  // Education operations
+  async getEducationsByUserId(userId: number): Promise<Education[]> {
+    return Array.from(this.educations.values())
+      .filter(education => education.userId === userId)
+      .sort((a, b) => {
+        // Compare start dates (most recent first)
+        const aDate = a.startDate || '';
+        const bDate = b.startDate || '';
+        return bDate.localeCompare(aDate);
+      });
+  }
+
+  async getEducationById(id: number): Promise<Education | undefined> {
+    return this.educations.get(id);
+  }
+
+  async createEducation(insertEducation: InsertEducation): Promise<Education> {
+    const id = this.currentEducationId++;
+    const now = new Date();
+    const education: Education = { 
+      ...insertEducation, 
+      id, 
+      createdAt: now 
+    };
+    this.educations.set(id, education);
+    return education;
+  }
+
+  async updateEducation(id: number, data: Partial<InsertEducation>): Promise<Education | undefined> {
+    const education = this.educations.get(id);
+    if (!education) return undefined;
+    
+    const updatedEducation = { ...education, ...data };
+    this.educations.set(id, updatedEducation);
+    return updatedEducation;
+  }
+
+  async deleteEducation(id: number): Promise<boolean> {
+    return this.educations.delete(id);
   }
 
   // Extended operations
