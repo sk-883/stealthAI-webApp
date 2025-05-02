@@ -1,28 +1,27 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Education } from "@shared/schema";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
+import { Education } from "@shared/schema";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 
-// Define schema for form validation
-const educationSchema = z.object({
+// Education schema for form validation
+const educationFormSchema = z.object({
   school: z.string().min(1, "School name is required"),
-  degree: z.string().optional(),
+  degree: z.string().min(1, "Degree is required"),
   fieldOfStudy: z.string().optional(),
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().optional(),
@@ -30,136 +29,140 @@ const educationSchema = z.object({
   schoolLogo: z.string().optional(),
 });
 
-type EducationFormValues = z.infer<typeof educationSchema>;
+type EducationFormValues = z.infer<typeof educationFormSchema>;
 
 interface EducationFormProps {
   education?: Education;
-  onSuccess?: () => void;
+  onSuccess: () => void;
 }
 
 export default function EducationForm({ education, onSuccess }: EducationFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
+  // Initialize form with existing education data or defaults
   const form = useForm<EducationFormValues>({
-    resolver: zodResolver(educationSchema),
+    resolver: zodResolver(educationFormSchema),
     defaultValues: {
       school: education?.school || "",
       degree: education?.degree || "",
       fieldOfStudy: education?.fieldOfStudy || "",
-      startDate: education?.startDate || "",
-      endDate: education?.endDate || "",
+      startDate: education?.startDate 
+        ? new Date(education.startDate).toISOString().split('T')[0] 
+        : "",
+      endDate: education?.endDate 
+        ? new Date(education.endDate).toISOString().split('T')[0] 
+        : "",
       description: education?.description || "",
       schoolLogo: education?.schoolLogo || "",
     },
   });
 
-  const { mutate: saveEducation, isPending } = useMutation({
-    mutationFn: async (values: EducationFormValues) => {
+  async function onSubmit(values: EducationFormValues) {
+    try {
+      setIsSubmitting(true);
+
+      // Prepare form data
+      const formData = {
+        ...values,
+        // Convert dates to ISO format
+        startDate: new Date(values.startDate).toISOString(),
+        endDate: values.endDate 
+          ? new Date(values.endDate).toISOString() 
+          : null,
+      };
+
+      // Determine if this is an update or create operation
       if (education) {
-        return await apiRequest(
+        // Update existing education
+        await apiRequest(
           "PATCH",
           `/api/educations/${education.id}`,
-          values
+          formData
         );
+        toast({
+          title: "Education updated",
+          description: "Your education has been updated successfully.",
+        });
       } else {
-        return await apiRequest(
+        // Create new education
+        await apiRequest(
           "POST",
           "/api/educations",
-          values
+          formData
         );
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: education ? "Education updated" : "Education added",
-        description: education
-          ? "Your education has been updated successfully"
-          : "Your education has been added successfully",
-      });
-      
-      // Invalidate queries to refresh data
-      const currentUser = queryClient.getQueryData<any>(["/api/auth/user"]);
-      if (currentUser?.id) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['/api/users', currentUser.id, 'educations'] 
+        toast({
+          title: "Education added",
+          description: "Your education has been added successfully.",
         });
       }
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-    },
-    onError: (error) => {
+
+      // Call the success callback
+      onSuccess();
+    } catch (error) {
       console.error("Failed to save education:", error);
       toast({
         title: "Error",
-        description:
-          "There was an error saving your education. Please try again.",
+        description: "Failed to save education. Please try again.",
         variant: "destructive",
       });
-    },
-  });
-
-  function onSubmit(values: EducationFormValues) {
-    saveEducation(values);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <Form {...form}>
-      <h2 className="text-lg font-medium mb-6">
-        {education ? "Edit Education" : "Add Education"}
-      </h2>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
         <FormField
           control={form.control}
           name="school"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>School/University*</FormLabel>
+              <FormLabel>School</FormLabel>
               <FormControl>
-                <Input placeholder="Stanford University" {...field} />
+                <Input placeholder="e.g. Stanford University" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="degree"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Degree</FormLabel>
-                <FormControl>
-                  <Input placeholder="Bachelor of Science" {...field} value={field.value || ""} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="fieldOfStudy"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Field of Study</FormLabel>
-                <FormControl>
-                  <Input placeholder="Computer Science" {...field} value={field.value || ""} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="degree"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Degree</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. Bachelor's, Master's, PhD" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField
+          control={form.control}
+          name="fieldOfStudy"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Field of Study</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. Computer Science (Optional)" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="startDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Start Date*</FormLabel>
+                <FormLabel>Start Date</FormLabel>
                 <FormControl>
                   <Input type="date" {...field} />
                 </FormControl>
@@ -167,14 +170,18 @@ export default function EducationForm({ education, onSuccess }: EducationFormPro
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control}
             name="endDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>End Date (or expected)</FormLabel>
+                <FormLabel>End Date</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} value={field.value || ""} />
+                  <Input 
+                    type="date" 
+                    {...field} 
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -189,11 +196,10 @@ export default function EducationForm({ education, onSuccess }: EducationFormPro
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="Activities, achievements, or additional information..."
-                  {...field}
-                  value={field.value || ""}
-                  rows={4}
+                <Textarea 
+                  placeholder="Add details about your education experience (Optional)" 
+                  {...field} 
+                  className="min-h-[100px]"
                 />
               </FormControl>
               <FormMessage />
@@ -208,29 +214,27 @@ export default function EducationForm({ education, onSuccess }: EducationFormPro
             <FormItem>
               <FormLabel>School Logo URL</FormLabel>
               <FormControl>
-                <Input placeholder="https://example.com/logo.png" {...field} value={field.value || ""} />
+                <Input placeholder="URL to school logo (Optional)" {...field} />
               </FormControl>
-              <FormDescription>
-                URL to the school or university logo image (optional)
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
         <div className="flex justify-end space-x-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              if (onSuccess) onSuccess();
-            }}
+          <Button 
+            type="submit" 
+            className="bg-[#0a66c2] hover:bg-[#004182]" 
+            disabled={isSubmitting}
           >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {education ? "Update" : "Save"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {education ? "Updating..." : "Adding..."}
+              </>
+            ) : (
+              education ? "Update Education" : "Add Education"
+            )}
           </Button>
         </div>
       </form>

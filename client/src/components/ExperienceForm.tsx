@@ -1,204 +1,153 @@
 import { useState } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Experience } from "@shared/schema";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
+import { Experience } from "@shared/schema";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 
-// Define schema for form validation
-const experienceSchema = z.object({
-  title: z.string().min(1, "Job title is required"),
-  company: z.string().min(1, "Company name is required"),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().optional().nullable(),
-  isCurrentRole: z.boolean().optional(),
+// Experience schema for form validation
+const experienceFormSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  company: z.string().min(1, "Company is required"),
   location: z.string().optional(),
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().optional(),
+  isCurrentRole: z.boolean().optional(),
   description: z.string().optional(),
   companyLogo: z.string().optional(),
 });
 
-type ExperienceFormValues = z.infer<typeof experienceSchema>;
+type ExperienceFormValues = z.infer<typeof experienceFormSchema>;
 
 interface ExperienceFormProps {
   experience?: Experience;
-  onSuccess?: () => void;
+  onSuccess: () => void;
 }
 
 export default function ExperienceForm({ experience, onSuccess }: ExperienceFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const [isCurrentRole, setIsCurrentRole] = useState(experience?.isCurrentRole || false);
 
+  // Initialize form with existing experience data or defaults
   const form = useForm<ExperienceFormValues>({
-    resolver: zodResolver(experienceSchema),
+    resolver: zodResolver(experienceFormSchema),
     defaultValues: {
       title: experience?.title || "",
       company: experience?.company || "",
-      startDate: experience?.startDate || "",
-      endDate: experience?.endDate || "",
-      isCurrentRole: experience?.isCurrentRole || false,
       location: experience?.location || "",
+      startDate: experience?.startDate 
+        ? new Date(experience.startDate).toISOString().split('T')[0] 
+        : "",
+      endDate: experience?.endDate 
+        ? new Date(experience.endDate).toISOString().split('T')[0] 
+        : "",
+      isCurrentRole: experience?.isCurrentRole || false,
       description: experience?.description || "",
       companyLogo: experience?.companyLogo || "",
     },
   });
 
-  const { mutate: saveExperience, isPending } = useMutation({
-    mutationFn: async (values: ExperienceFormValues) => {
+  const isCurrentRole = form.watch("isCurrentRole");
+
+  async function onSubmit(values: ExperienceFormValues) {
+    try {
+      setIsSubmitting(true);
+
+      // Prepare form data
+      const formData = {
+        ...values,
+        // Convert dates to ISO format
+        startDate: new Date(values.startDate).toISOString(),
+        endDate: values.isCurrentRole 
+          ? null 
+          : values.endDate 
+            ? new Date(values.endDate).toISOString() 
+            : null,
+      };
+
+      // Determine if this is an update or create operation
       if (experience) {
-        return await apiRequest(
+        // Update existing experience
+        await apiRequest(
           "PATCH",
           `/api/experiences/${experience.id}`,
-          values
+          formData
         );
+        toast({
+          title: "Experience updated",
+          description: "Your experience has been updated successfully.",
+        });
       } else {
-        return await apiRequest(
+        // Create new experience
+        await apiRequest(
           "POST",
           "/api/experiences",
-          values
+          formData
         );
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: experience ? "Experience updated" : "Experience added",
-        description: experience
-          ? "Your experience has been updated successfully"
-          : "Your experience has been added successfully",
-      });
-      
-      // Invalidate queries to refresh data
-      const currentUser = queryClient.getQueryData<any>(["/api/auth/user"]);
-      if (currentUser?.id) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['/api/users', currentUser.id, 'experiences'] 
+        toast({
+          title: "Experience added",
+          description: "Your experience has been added successfully.",
         });
       }
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-    },
-    onError: (error) => {
+
+      // Call the success callback
+      onSuccess();
+    } catch (error) {
       console.error("Failed to save experience:", error);
       toast({
         title: "Error",
-        description:
-          "There was an error saving your experience. Please try again.",
+        description: "Failed to save experience. Please try again.",
         variant: "destructive",
       });
-    },
-  });
-
-  function onSubmit(values: ExperienceFormValues) {
-    saveExperience(values);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <Form {...form}>
-      <h2 className="text-lg font-medium mb-6">
-        {experience ? "Edit Experience" : "Add Experience"}
-      </h2>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Job Title*</FormLabel>
-                <FormControl>
-                  <Input placeholder="Software Engineer" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="company"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Company*</FormLabel>
-                <FormControl>
-                  <Input placeholder="Acme Corp" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Title</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. Software Engineer" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="startDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Start Date*</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <div className="space-y-4">
-            <FormField
-              control={form.control}
-              name="isCurrentRole"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between space-x-2 space-y-0">
-                  <FormLabel>I currently work here</FormLabel>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={(checked) => {
-                        field.onChange(checked);
-                        setIsCurrentRole(checked);
-                        if (checked) {
-                          form.setValue("endDate", "");
-                        }
-                      }}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            
-            {!isCurrentRole && (
-              <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-          </div>
-        </div>
+        <FormField
+          control={form.control}
+          name="company"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Company</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. Tech Company Inc." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
@@ -207,12 +156,62 @@ export default function ExperienceForm({ experience, onSuccess }: ExperienceForm
             <FormItem>
               <FormLabel>Location</FormLabel>
               <FormControl>
-                <Input placeholder="New York, NY" {...field} value={field.value || ""} />
+                <Input placeholder="e.g. San Francisco, CA (Optional)" {...field} />
               </FormControl>
-              <FormDescription>
-                City, State, Country, or Remote
-              </FormDescription>
               <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="startDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Start Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="endDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>End Date</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    {...field} 
+                    disabled={isCurrentRole}
+                    value={isCurrentRole ? "" : field.value}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="isCurrentRole"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>I am currently working in this role</FormLabel>
+              </div>
             </FormItem>
           )}
         />
@@ -224,11 +223,10 @@ export default function ExperienceForm({ experience, onSuccess }: ExperienceForm
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="Describe your responsibilities and achievements..."
-                  {...field}
-                  value={field.value || ""}
-                  rows={4}
+                <Textarea 
+                  placeholder="Describe your responsibilities and achievements (Optional)" 
+                  {...field} 
+                  className="min-h-[100px]"
                 />
               </FormControl>
               <FormMessage />
@@ -243,29 +241,27 @@ export default function ExperienceForm({ experience, onSuccess }: ExperienceForm
             <FormItem>
               <FormLabel>Company Logo URL</FormLabel>
               <FormControl>
-                <Input placeholder="https://example.com/logo.png" {...field} value={field.value || ""} />
+                <Input placeholder="URL to company logo (Optional)" {...field} />
               </FormControl>
-              <FormDescription>
-                URL to the company logo image (optional)
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
         <div className="flex justify-end space-x-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              if (onSuccess) onSuccess();
-            }}
+          <Button 
+            type="submit" 
+            className="bg-[#0a66c2] hover:bg-[#004182]" 
+            disabled={isSubmitting}
           >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {experience ? "Update" : "Save"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {experience ? "Updating..." : "Adding..."}
+              </>
+            ) : (
+              experience ? "Update Experience" : "Add Experience"
+            )}
           </Button>
         </div>
       </form>
