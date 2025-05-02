@@ -16,6 +16,7 @@ import AuthPage from "@/pages/auth-page";
 import Navbar from "@/components/Navbar";
 import MobileNavigation from "@/components/MobileNavigation";
 import { AuthProvider } from "@/hooks/use-auth";
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { ProtectedRoute } from "@/lib/protected-route";
 
 function Router() {
@@ -42,12 +43,14 @@ function Router() {
 function App() {
   return (
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Navbar />
-        <Router />
-        <MobileNavigation />
-      </TooltipProvider>
+      <WebSocketProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Navbar />
+          <Router />
+          <MobileNavigation />
+        </TooltipProvider>
+      </WebSocketProvider>
     </AuthProvider>
   );
 }

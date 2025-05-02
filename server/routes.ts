@@ -20,12 +20,7 @@ import {
   sendMessage, 
   deleteMessage 
 } from "./api/messages";
-import { 
-  getNotifications, 
-  markNotificationsAsRead, 
-  deleteNotification, 
-  getUnreadNotificationCount 
-} from "./api/notifications";
+import notificationsRouter from "./api/notifications";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
@@ -752,11 +747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/messages/:id", isAuthenticated, deleteMessage);
 
   // Notification routes
-  app.get("/api/notifications", isAuthenticated, getNotifications);
-  app.get("/api/notifications/unread/count", isAuthenticated, getUnreadNotificationCount);
-  app.patch("/api/notifications/read", isAuthenticated, markNotificationsAsRead);
-  app.patch("/api/notifications/:id/read", isAuthenticated, markNotificationsAsRead);
-  app.delete("/api/notifications/:id", isAuthenticated, deleteNotification);
+  app.use('/api/notifications', notificationsRouter);
 
   // Create HTTP server
   const httpServer = createServer(app);
