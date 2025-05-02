@@ -38,11 +38,6 @@ export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
   
-  // Redirect to home if already logged in
-  if (user) {
-    return <Redirect to="/" />;
-  }
-  
   // Login form
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -65,6 +60,11 @@ export default function AuthPage() {
       profilePicture: `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 70)}.jpg`
     }
   });
+  
+  // Redirect to home if already logged in - moved after all hooks
+  if (user) {
+    return <Redirect to="/" />;
+  }
   
   // Login submit handler
   function onLoginSubmit(data: z.infer<typeof loginSchema>) {
