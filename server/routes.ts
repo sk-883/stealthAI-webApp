@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./prisma-storage";
+import { setupAuth } from "./auth";
 import { 
   insertUserSchema, 
   insertPostSchema, 
@@ -14,10 +15,15 @@ import * as z from "zod";
 import { ZodError } from "zod-validation-error";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // The isAuthenticated middleware is now simplified to always allow requests
-  // This is because we've removed authentication
+  // Setup authentication
+  setupAuth(app, storage as any);
+
+  // The isAuthenticated middleware checks if the user is authenticated
   const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
-    return next();
+    if (req.isAuthenticated()) {
+      return next();
+    }
+    return res.status(401).json({ message: "Not authenticated" });
   };
 
   // Helper function to validate request body against zod schema
@@ -37,12 +43,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     };
   };
-
-  // Mock authentication route for compatibility
-  app.get("/api/auth/user", (req, res) => {
-    // Now we return a fixed user ID for all requests since we don't have authentication
-    return res.status(401).json({ message: "Not authenticated" });
-  });
 
   // User routes
   app.get("/api/users", async (req, res) => {
