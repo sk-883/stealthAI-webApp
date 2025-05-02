@@ -1,11 +1,14 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
-const prisma = new PrismaClient();
+// Create a new Prisma client
+const prisma = new PrismaClient({
+  log: ['query', 'info', 'warn', 'error'],
+});
 
 // Middleware to check if user is authenticated
-const isAuthenticated = (req, res, next) => {
+const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
   if (!req.isAuthenticated()) return res.status(401).json({ message: 'Not authenticated' });
   next();
 };
@@ -25,11 +28,17 @@ const createNotificationSchema = z.object({
 const router = Router();
 
 // Get all notifications for the current user
-router.get('/', isAuthenticated, async (req, res) => {
+router.get('/', isAuthenticated, async (req: Request, res: Response) => {
   try {
+    // Type assertion with the globally augmented Express User interface
+    const userId = (req.user as any)?.id;
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID not found' });
+    }
+
     const notifications = await prisma.notification.findMany({
       where: {
-        userId: req.user.id,
+        userId: userId,
       },
       orderBy: {
         createdAt: 'desc',
@@ -54,11 +63,17 @@ router.get('/', isAuthenticated, async (req, res) => {
 });
 
 // Get unread notification count
-router.get('/unread/count', isAuthenticated, async (req, res) => {
+router.get('/unread/count', isAuthenticated, async (req: Request, res: Response) => {
   try {
+    // Type assertion with the globally augmented Express User interface
+    const userId = (req.user as any)?.id;
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID not found' });
+    }
+    
     const count = await prisma.notification.count({
       where: {
-        userId: req.user.id,
+        userId: userId,
         isRead: false,
       },
     });
@@ -71,9 +86,15 @@ router.get('/unread/count', isAuthenticated, async (req, res) => {
 });
 
 // Mark a specific notification as read
-router.patch('/:id/read', isAuthenticated, async (req, res) => {
+router.patch('/:id/read', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
+    
+    // Type assertion with the globally augmented Express User interface
+    const userId = (req.user as any)?.id;
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID not found' });
+    }
     
     // Verify the notification belongs to the user
     const notification = await prisma.notification.findUnique({
@@ -85,7 +106,7 @@ router.patch('/:id/read', isAuthenticated, async (req, res) => {
       return res.status(404).json({ message: 'Notification not found' });
     }
     
-    if (notification.userId !== req.user.id) {
+    if (notification.userId !== userId) {
       return res.status(403).json({ message: 'Not authorized to update this notification' });
     }
     
@@ -103,11 +124,17 @@ router.patch('/:id/read', isAuthenticated, async (req, res) => {
 });
 
 // Mark all notifications as read
-router.patch('/read', isAuthenticated, async (req, res) => {
+router.patch('/read', isAuthenticated, async (req: Request, res: Response) => {
   try {
+    // Type assertion with the globally augmented Express User interface
+    const userId = (req.user as any)?.id;
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID not found' });
+    }
+    
     await prisma.notification.updateMany({
       where: {
-        userId: req.user.id,
+        userId: userId,
         isRead: false,
       },
       data: {
@@ -123,9 +150,15 @@ router.patch('/read', isAuthenticated, async (req, res) => {
 });
 
 // Delete a specific notification
-router.delete('/:id', isAuthenticated, async (req, res) => {
+router.delete('/:id', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
+    
+    // Type assertion with the globally augmented Express User interface
+    const userId = (req.user as any)?.id;
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID not found' });
+    }
     
     // Verify the notification belongs to the user
     const notification = await prisma.notification.findUnique({
@@ -137,7 +170,7 @@ router.delete('/:id', isAuthenticated, async (req, res) => {
       return res.status(404).json({ message: 'Notification not found' });
     }
     
-    if (notification.userId !== req.user.id) {
+    if (notification.userId !== userId) {
       return res.status(403).json({ message: 'Not authorized to delete this notification' });
     }
     
@@ -154,7 +187,7 @@ router.delete('/:id', isAuthenticated, async (req, res) => {
 });
 
 // Create a new notification (typically used internally by the server)
-router.post('/', async (req, res) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const data = createNotificationSchema.parse(req.body);
     
