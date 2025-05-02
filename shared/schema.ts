@@ -1,7 +1,99 @@
 import { z } from "zod";
-import { Prisma, User as PrismaUser, Post as PrismaPost, Connection as PrismaConnection, 
-  Comment as PrismaComment, Experience as PrismaExperience, Education as PrismaEducation, 
-  PostLike as PrismaPostLike } from '@prisma/client';
+
+// Define interfaces that match our Prisma models
+export interface User {
+  id: number;
+  username: string;
+  password: string;
+  name: string;
+  headline: string | null;
+  bio: string | null;
+  profilePicture: string | null;
+  coverPicture: string | null;
+  createdAt: Date;
+}
+
+export interface Post {
+  id: number;
+  userId: number;
+  content: string;
+  imageUrl: string | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  createdAt: Date;
+}
+
+export interface Connection {
+  id: number;
+  userId: number;
+  connectedUserId: number;
+  status: string;
+  createdAt: Date;
+}
+
+export interface Comment {
+  id: number;
+  postId: number;
+  userId: number;
+  content: string;
+  createdAt: Date;
+}
+
+export interface Experience {
+  id: number;
+  userId: number;
+  title: string;
+  company: string;
+  location: string | null;
+  isCurrentRole: boolean | null;
+  startDate: string;
+  endDate: string | null;
+  description: string | null;
+  companyLogo: string | null;
+  createdAt: Date;
+}
+
+export interface Education {
+  id: number;
+  userId: number;
+  school: string;
+  degree: string | null;
+  fieldOfStudy: string | null;
+  startDate: string;
+  endDate: string | null;
+  description: string | null;
+  schoolLogo: string | null;
+  createdAt: Date;
+}
+
+export interface PostLike {
+  id: number;
+  postId: number;
+  userId: number;
+  createdAt: Date;
+}
+
+export interface Message {
+  id: number;
+  senderId: number;
+  receiverId: number;
+  content: string;
+  isRead: boolean;
+  createdAt: Date;
+}
+
+export interface Notification {
+  id: number;
+  userId: number;
+  actorId: number | null;
+  type: string;
+  content: string;
+  entityId: number | null;
+  entityType: string | null;
+  isRead: boolean;
+  createdAt: Date;
+}
 
 // Define Prisma schema-based Zod validation schemas
 export const insertUserSchema = z.object({
@@ -66,20 +158,13 @@ export const loginSchema = z.object({
   password: z.string().min(6),
 });
 
-// Types from Prisma
-export type User = PrismaUser;
+// Insert types from Zod schemas
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type Post = PrismaPost;
 export type InsertPost = z.infer<typeof insertPostSchema>;
-export type Connection = PrismaConnection;
 export type InsertConnection = z.infer<typeof insertConnectionSchema>;
-export type Comment = PrismaComment;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
-export type Experience = PrismaExperience;
 export type InsertExperience = z.infer<typeof insertExperienceSchema>;
-export type Education = PrismaEducation;
 export type InsertEducation = z.infer<typeof insertEducationSchema>;
-export type PostLike = PrismaPostLike;
 export type InsertPostLike = z.infer<typeof insertPostLikeSchema>;
 export type Login = z.infer<typeof loginSchema>;
 
