@@ -64,12 +64,12 @@ export default function Navbar() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <div className="flex-shrink-0 flex items-center">
+            <Link href="/" className="flex-shrink-0 flex items-center">
               <svg className="h-8 w-8 text-[#0a66c2]" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zM9 17H6.5v-7H9v7zM7.8 9.2A1.6 1.6 0 117.8 6a1.6 1.6 0 010 3.2zm9.7 7.8h-2.5v-4c0-2.5-3-2.3-3 0v4h-2.5v-7h2.5v1.5c1-1.9 5-2 5 1.8v3.7z" />
               </svg>
               <h1 className="ml-2 text-xl font-bold text-[#0a66c2]">LinkedUp</h1>
-            </div>
+            </Link>
             
             {/* Search bar - hidden on mobile */}
             <div className="ml-6 hidden md:block">
