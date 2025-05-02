@@ -1,6 +1,6 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "./prisma-storage";
 import { 
   insertUserSchema, 
   insertPostSchema, 
@@ -8,78 +8,16 @@ import {
   insertCommentSchema,
   insertExperienceSchema,
   insertEducationSchema,
-  insertPostLikeSchema,
-  loginSchema 
+  insertPostLikeSchema
 } from "@shared/schema";
-import session from "express-session";
-import MemoryStore from "memorystore";
-import passport from "passport";
-import { Strategy as LocalStrategy } from "passport-local";
-import bcrypt from "bcryptjs";
 import * as z from "zod";
 import { ZodError } from "zod-validation-error";
 
-const MemoryStoreSession = MemoryStore(session);
-
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Set up sessions and authentication
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "very-secret-key",
-      resave: false,
-      saveUninitialized: false,
-      cookie: { secure: process.env.NODE_ENV === "production" },
-      store: new MemoryStoreSession({
-        checkPeriod: 86400000, // prune expired entries every 24h
-      }),
-    })
-  );
-
-  app.use(passport.initialize());
-  app.use(passport.session());
-
-  // Passport configuration
-  passport.use(
-    new LocalStrategy(async (username, password, done) => {
-      try {
-        const user = await storage.getUserByUsername(username);
-        if (!user) {
-          return done(null, false, { message: "Incorrect username" });
-        }
-
-        // For development, allow simple password comparison
-        // In production, use bcrypt.compare
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-          return done(null, false, { message: "Incorrect password" });
-        }
-
-        return done(null, user);
-      } catch (error) {
-        return done(error);
-      }
-    })
-  );
-
-  passport.serializeUser((user: any, done) => {
-    done(null, user.id);
-  });
-
-  passport.deserializeUser(async (id: number, done) => {
-    try {
-      const user = await storage.getUser(id);
-      done(null, user);
-    } catch (error) {
-      done(error);
-    }
-  });
-
-  // Authentication middleware
-  const isAuthenticated = (req: Request, res: Response, next: Function) => {
-    if (req.isAuthenticated()) {
-      return next();
-    }
-    res.status(401).json({ message: "Unauthorized" });
+  // The isAuthenticated middleware is now simplified to always allow requests
+  // This is because we've removed authentication
+  const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
+    return next();
   };
 
   // Helper function to validate request body against zod schema
@@ -100,93 +38,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     };
   };
 
-  // Authentication routes
-  app.post(
-    "/api/auth/register",
-    validateBody(insertUserSchema.extend({
-      password: z.string().min(6)
-    })),
-    async (req, res) => {
-      try {
-        const { username, password, ...rest } = req.body;
-
-        // Check if user already exists
-        const existingUser = await storage.getUserByUsername(username);
-        if (existingUser) {
-          return res.status(400).json({ message: "Username already taken" });
-        }
-
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Create new user
-        const user = await storage.createUser({
-          username,
-          password: hashedPassword,
-          ...rest,
-        });
-
-        // Remove password from response
-        const { password: _, ...userWithoutPassword } = user;
-
-        req.login(user, (err) => {
-          if (err) {
-            return res.status(500).json({ message: "Error during login after registration" });
-          }
-          return res.status(201).json(userWithoutPassword);
-        });
-      } catch (error) {
-        console.error("Registration error:", error);
-        return res.status(500).json({ message: "Error registering user" });
-      }
-    }
-  );
-
-  app.post(
-    "/api/auth/login",
-    validateBody(loginSchema),
-    (req, res, next) => {
-      passport.authenticate("local", (err, user, info) => {
-        if (err) {
-          return next(err);
-        }
-        if (!user) {
-          return res.status(401).json({ message: info.message || "Authentication failed" });
-        }
-        req.login(user, (err) => {
-          if (err) {
-            return next(err);
-          }
-          // Remove password from response
-          const { password, ...userWithoutPassword } = user;
-          return res.json(userWithoutPassword);
-        });
-      })(req, res, next);
-    }
-  );
-
-  app.post("/api/auth/logout", (req, res) => {
-    req.logout(() => {
-      req.session.destroy(() => {
-        res.status(200).json({ message: "Logged out successfully" });
-      });
-    });
-  });
-
+  // Mock authentication route for compatibility
   app.get("/api/auth/user", (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    // Remove password from response
-    const { password, ...userWithoutPassword } = req.user as any;
-    res.json(userWithoutPassword);
+    // Now we return a fixed user ID for all requests since we don't have authentication
+    return res.status(401).json({ message: "Not authenticated" });
   });
 
   // User routes
   app.get("/api/users", async (req, res) => {
     try {
       // Get all users (for demo purposes)
-      const users = await storage.getUsersForConnections(req.user ? (req.user as any).id : 0);
+      // Using a default userId of 1 since we no longer have authentication
+      const users = await storage.getUsersForConnections(1);
       // Remove passwords from response
       const usersWithoutPasswords = users.map(user => {
         const { password, ...userWithoutPassword } = user;
@@ -223,12 +86,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const userId = parseInt(req.params.id);
-        const currentUser = req.user as any;
-        
-        // Users can only update their own profile
-        if (currentUser.id !== userId) {
-          return res.status(403).json({ message: "Forbidden" });
-        }
         
         // Filter out password from updates through the API
         const { password, ...updateData } = req.body;
@@ -293,7 +150,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     validateBody(insertPostSchema.omit({ userId: true })),
     async (req, res) => {
       try {
-        const userId = (req.user as any).id;
+        // Using a default user ID of 1 since we no longer have authentication
+        const userId = 1;
         const post = await storage.createPost({
           ...req.body,
           userId,
