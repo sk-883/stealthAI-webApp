@@ -69,6 +69,13 @@ export const educations = pgTable("educations", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const postLikes = pgTable("post_likes", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   posts: many(posts),
@@ -78,11 +85,12 @@ export const usersRelations = relations(users, ({ many }) => ({
   educations: many(educations),
 }));
 
-export const postsRelations = relations(posts, ({ one }) => ({
+export const postsRelations = relations(posts, ({ one, many }) => ({
   user: one(users, {
     fields: [posts.userId],
     references: [users.id],
   }),
+  likes: many(postLikes),
 }));
 
 export const connectionsRelations = relations(connections, ({ one }) => ({
