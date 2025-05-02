@@ -29,6 +29,14 @@ model User {
   educations         Education[]
   comments           Comment[]
   postLikes          PostLike[]
+  
+  // Message relations
+  sentMessages       Message[]    @relation("MessageSender")
+  receivedMessages   Message[]    @relation("MessageReceiver")
+  
+  // Notification relations
+  notifications      Notification[]
+  notificationsCaused Notification[] @relation("NotificationActor")
 
   @@map("users")
 }
@@ -127,4 +135,46 @@ model PostLike {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("post_likes")
+}
+
+model Message {
+  id            Int       @id @default(autoincrement())
+  senderId      Int       @map("sender_id")
+  receiverId    Int       @map("receiver_id")
+  content       String
+  isRead        Boolean   @default(false) @map("is_read")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  sender   User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Notification {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @map("user_id")
+  actorId       Int?      @map("actor_id") // The user who caused the notification
+  type          String    // e.g., 'post_like', 'connection_request', 'comment', etc.
+  content       String
+  entityId      Int?      @map("entity_id") // ID of the related entity (post, comment, etc.)
+  entityType    String?   @map("entity_type") // Type of the related entity
+  isRead        Boolean   @default(false) @map("is_read")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@map("notifications")
+}
+
+model Session {
+  id        String   @id
+  sid       String   @unique
+  data      String
+  expiresAt DateTime @map("expires_at")
+
+  @@map("session")
 }
