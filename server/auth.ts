@@ -5,13 +5,15 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { PrismaStorage } from "./prisma-storage";
-import { User as PrismaUser } from "@prisma/client";
+import { User } from "../shared/schema";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
 
 declare global {
   namespace Express {
-    interface User extends PrismaUser {}
+    interface User extends Omit<User, 'id'> {
+      id: number;
+    }
   }
 }
 

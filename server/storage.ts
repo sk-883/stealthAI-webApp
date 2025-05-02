@@ -877,6 +877,8 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Choose the appropriate storage implementation
-// export const storage = new DatabaseStorage();
-export const storage = new MemStorage();
+// For development, use the in-memory storage
+// export const storage = new MemStorage();
+
+// Use Prisma storage instead
+export { storage } from './prisma-storage';

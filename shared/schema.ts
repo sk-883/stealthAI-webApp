@@ -169,23 +169,23 @@ export type InsertPostLike = z.infer<typeof insertPostLikeSchema>;
 export type Login = z.infer<typeof loginSchema>;
 
 // Extended Types with Relations
-export type PostWithUser = Post & {
+export interface PostWithUser extends Post {
   user: User;
-};
+}
 
-export type UserWithConnections = User & {
+export interface UserWithConnections extends User {
   connections: Connection[];
-};
+}
 
-export type UserWithExperiences = User & {
+export interface UserWithExperiences extends User {
   experiences: Experience[];
-};
+}
 
-export type UserWithEducations = User & {
+export interface UserWithEducations extends User {
   educations: Education[];
-};
+}
 
-export type UserWithProfile = User & {
+export interface UserWithProfile extends User {
   experiences: Experience[];
   educations: Education[];
-};
+}
