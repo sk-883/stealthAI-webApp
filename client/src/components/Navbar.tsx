@@ -8,14 +8,15 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useWebSocket } from "@/hooks/use-websocket";
 import { 
   Home,
   Users,
   Briefcase,
   MessageSquare,
-  Bell,
   Menu,
   Search,
   ChevronDown,
@@ -94,10 +95,10 @@ export default function Navbar() {
                   <MessageSquare className="linkedin-icon" />
                   <span>Messages</span>
                 </Link>
-                <Link href="/notifications" className="linkedin-nav-link">
-                  <Bell className="linkedin-icon" />
+                <div className="linkedin-nav-link">
+                  <NotificationDropdown />
                   <span>Notifications</span>
-                </Link>
+                </div>
                 <Separator orientation="vertical" className="h-8" />
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex flex-col items-center justify-center cursor-pointer group outline-none">

@@ -13,6 +13,19 @@ import {
 } from "@shared/schema";
 import * as z from "zod";
 import { ZodError } from "zod-validation-error";
+import { WebSocketServer } from "ws";
+import { 
+  getMessages, 
+  getConversations, 
+  sendMessage, 
+  deleteMessage 
+} from "./api/messages";
+import { 
+  getNotifications, 
+  markNotificationsAsRead, 
+  deleteNotification, 
+  getUnreadNotificationCount 
+} from "./api/notifications";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
@@ -732,6 +745,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Message routes
+  app.get("/api/messages/:userId", isAuthenticated, getMessages);
+  app.get("/api/conversations", isAuthenticated, getConversations);
+  app.post("/api/messages", isAuthenticated, sendMessage);
+  app.delete("/api/messages/:id", isAuthenticated, deleteMessage);
+
+  // Notification routes
+  app.get("/api/notifications", isAuthenticated, getNotifications);
+  app.get("/api/notifications/unread/count", isAuthenticated, getUnreadNotificationCount);
+  app.patch("/api/notifications/read", isAuthenticated, markNotificationsAsRead);
+  app.patch("/api/notifications/:id/read", isAuthenticated, markNotificationsAsRead);
+  app.delete("/api/notifications/:id", isAuthenticated, deleteNotification);
+
+  // Create HTTP server
   const httpServer = createServer(app);
+  
+  // Set up WebSocket for real-time messaging and notifications
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Online users map to store socket connections
+  const onlineUsers = new Map<number, WebSocket>();
+  
+  wss.on('connection', (ws: WebSocket) => {
+    let userId: number | null = null;
+
+    // Handle authentication and identify user
+    ws.on('message', (message: string) => {
+      try {
+        const data = JSON.parse(message);
+        
+        // Handle authentication
+        if (data.type === 'auth') {
+          userId = parseInt(data.userId);
+          if (!isNaN(userId)) {
+            onlineUsers.set(userId, ws);
+            
+            // Send confirmation
+            ws.send(JSON.stringify({
+              type: 'auth_success',
+              message: 'Authentication successful'
+            }));
+          }
+        }
+        
+        // Handle new message
+        else if (data.type === 'message' && userId) {
+          const { receiverId, content } = data;
+          
+          // Store message in database asynchronously
+          sendMessage({
+            user: { id: userId } as any,
+            body: { receiverId, content }
+          } as any, {
+            status: () => ({ json: () => {} }),
+            json: () => {}
+          } as any);
+          
+          // Forward message to recipient if online
+          const recipientWs = onlineUsers.get(receiverId);
+          if (recipientWs && recipientWs.readyState === 1) { // 1 is WebSocket.OPEN
+            recipientWs.send(JSON.stringify({
+              type: 'new_message',
+              message: {
+                senderId: userId,
+                content
+              }
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('WebSocket message error:', error);
+      }
+    });
+    
+    // Handle disconnection
+    ws.on('close', () => {
+      if (userId) {
+        onlineUsers.delete(userId);
+      }
+    });
+  });
+  
   return httpServer;
 }
