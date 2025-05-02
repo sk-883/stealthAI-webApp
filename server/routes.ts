@@ -686,6 +686,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Post Like routes
+  app.get("/api/posts/:postId/likes", async (req, res) => {
+    try {
+      const postId = parseInt(req.params.postId);
+      const likes = await storage.getLikesByPostId(postId);
+      res.json(likes);
+    } catch (error) {
+      console.error("Error fetching post likes:", error);
+      res.status(500).json({ message: "Error fetching post likes" });
+    }
+  });
+
+  app.post(
+    "/api/posts/:postId/likes",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const postId = parseInt(req.params.postId);
+        const userId = (req.user as any).id;
+        
+        // Check if post exists
+        const post = await storage.getPostById(postId);
+        if (!post) {
+          return res.status(404).json({ message: "Post not found" });
+        }
+        
+        // Check if user already liked the post
+        const existingLike = await storage.getLikeByPostAndUser(postId, userId);
+        if (existingLike) {
+          return res.status(400).json({ message: "User already liked this post" });
+        }
+        
+        const like = await storage.createLike({
+          postId,
+          userId
+        });
+        
+        res.status(201).json(like);
+      } catch (error) {
+        console.error("Error liking post:", error);
+        res.status(500).json({ message: "Error liking post" });
+      }
+    }
+  );
+  
+  app.delete(
+    "/api/posts/:postId/likes",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const postId = parseInt(req.params.postId);
+        const userId = (req.user as any).id;
+        
+        // Check if like exists
+        const existingLike = await storage.getLikeByPostAndUser(postId, userId);
+        if (!existingLike) {
+          return res.status(404).json({ message: "Like not found" });
+        }
+        
+        // Users can only remove their own likes
+        if (existingLike.userId !== userId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        
+        const deleted = await storage.deleteLike(existingLike.id);
+        
+        if (deleted) {
+          res.status(204).end();
+        } else {
+          res.status(500).json({ message: "Error removing like" });
+        }
+      } catch (error) {
+        console.error("Error removing like:", error);
+        res.status(500).json({ message: "Error removing like" });
+      }
+    }
+  );
+
   // Comment routes
   app.get("/api/posts/:postId/comments", async (req, res) => {
     try {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -11,10 +11,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ThumbsUp, MessageSquare, Share2, Send, MoreHorizontal, Eye, Clock } from "lucide-react";
-import { PostWithUser } from "@shared/schema";
+import { PostWithUser, PostLike } from "@shared/schema";
 import { formatDistanceToNow } from 'date-fns';
 
 interface PostProps {
@@ -26,9 +26,66 @@ export default function Post({ post, currentUserId }: PostProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(post.likes);
+  const [likeCount, setLikeCount] = useState(post.likes ?? 0);
   
   const isOwnPost = currentUserId === post.userId;
+  
+  // Query to get post likes and check if current user has liked the post
+  const { data: likes } = useQuery({
+    queryKey: [`/api/posts/${post.id}/likes`],
+    enabled: !!currentUserId && !!post.id
+  });
+  
+  // Effect to update like state when data changes
+  useEffect(() => {
+    if (likes) {
+      const userLike = (likes as PostLike[]).find(like => like.userId === currentUserId);
+      setIsLiked(!!userLike);
+      setLikeCount((likes as PostLike[]).length);
+    }
+  }, [likes, currentUserId]);
+  
+  // Mutation to like a post
+  const likeMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/posts/${post.id}/likes`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/posts/${post.id}/likes`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+    },
+    onError: () => {
+      // Revert optimistic update
+      setIsLiked(false);
+      setLikeCount(prev => prev - 1);
+      toast({
+        title: "Error",
+        description: "Failed to like post. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Mutation to unlike a post
+  const unlikeMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("DELETE", `/api/posts/${post.id}/likes`, undefined);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/posts/${post.id}/likes`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+    },
+    onError: () => {
+      // Revert optimistic update
+      setIsLiked(true);
+      setLikeCount(prev => prev + 1);
+      toast({
+        title: "Error",
+        description: "Failed to unlike post. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
   
   const deletePostMutation = useMutation({
     mutationFn: async () => {
@@ -52,12 +109,24 @@ export default function Post({ post, currentUserId }: PostProps) {
   });
   
   const handleLike = () => {
+    if (!currentUserId) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to like posts",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Optimistic update
     setIsLiked(!isLiked);
     setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
-    toast({
-      title: isLiked ? "Post unliked" : "Post liked",
-      description: isLiked ? "You have unliked this post" : "You have liked this post"
-    });
+    
+    if (isLiked) {
+      unlikeMutation.mutate();
+    } else {
+      likeMutation.mutate();
+    }
   };
   
   const handleComment = () => {
@@ -92,8 +161,8 @@ export default function Post({ post, currentUserId }: PostProps) {
         <div className="flex">
           <Link href={`/profile/${post.user.id}`}>
             <Avatar className="h-12 w-12 cursor-pointer">
-              <AvatarImage src={post.user.profilePicture} alt={post.user.name} />
-              <AvatarFallback>{post.user.name?.charAt(0)}</AvatarFallback>
+              <AvatarImage src={post.user.profilePicture || undefined} alt={post.user.name || 'User'} />
+              <AvatarFallback>{post.user.name?.charAt(0) || 'U'}</AvatarFallback>
             </Avatar>
           </Link>
           <div className="ml-3">
