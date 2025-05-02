@@ -45,11 +45,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // User routes
-  app.get("/api/users", async (req, res) => {
+  app.get("/api/users", isAuthenticated, async (req, res) => {
     try {
-      // Get all users (for demo purposes)
-      // Using a default userId of 1 since we no longer have authentication
-      const users = await storage.getUsersForConnections(1);
+      // Get all users
+      const userId = (req.user as any).id;
+      const users = await storage.getUsersForConnections(userId);
       // Remove passwords from response
       const usersWithoutPasswords = users.map(user => {
         const { password, ...userWithoutPassword } = user;

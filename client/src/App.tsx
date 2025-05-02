@@ -10,22 +10,28 @@ import Jobs from "@/pages/Jobs";
 import Messages from "@/pages/Messages";
 import Notifications from "@/pages/Notifications";
 import Settings from "@/pages/Settings";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import Navbar from "@/components/Navbar";
 import MobileNavigation from "@/components/MobileNavigation";
+import { AuthProvider } from "@/hooks/use-auth";
+import { ProtectedRoute } from "@/lib/protected-route";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/profile" component={Profile} />
+      <ProtectedRoute path="/" component={Home} />
+      <ProtectedRoute path="/profile" component={Profile} />
       <Route path="/profile/:id">
         {(params) => <Profile id={params.id} />}
       </Route>
-      <Route path="/network" component={Network} />
-      <Route path="/jobs" component={Jobs} />
-      <Route path="/messages" component={Messages} />
-      <Route path="/notifications" component={Notifications} />
-      <Route path="/settings" component={Settings} />
+      <ProtectedRoute path="/network" component={Network} />
+      <ProtectedRoute path="/jobs" component={Jobs} />
+      <ProtectedRoute path="/messages" component={Messages} />
+      <ProtectedRoute path="/notifications" component={Notifications} />
+      <ProtectedRoute path="/settings" component={Settings} />
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -33,12 +39,14 @@ function Router() {
 
 function App() {
   return (
-    <TooltipProvider>
-      <Toaster />
-      <Navbar />
-      <Router />
-      <MobileNavigation />
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Navbar />
+        <Router />
+        <MobileNavigation />
+      </TooltipProvider>
+    </AuthProvider>
   );
 }
 

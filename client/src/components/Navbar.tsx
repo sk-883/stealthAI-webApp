@@ -8,8 +8,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Home,
@@ -19,7 +18,8 @@ import {
   Bell,
   Menu,
   Search,
-  ChevronDown
+  ChevronDown,
+  LogIn
 } from "lucide-react";
 import { useState } from "react";
 
@@ -27,24 +27,7 @@ export default function Navbar() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  
-  const { data: user } = useQuery({ 
-    queryKey: ["/api/auth/user"]
-  });
-
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/auth/logout", {});
-      return response.json();
-    },
-    onSuccess: () => {
-      navigate("/login");
-      toast({
-        title: "Logged out successfully",
-        description: "You have been logged out of your account."
-      });
-    }
-  });
+  const { user, logoutMutation } = useAuth();
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -71,85 +54,103 @@ export default function Navbar() {
               <h1 className="ml-2 text-xl font-bold text-[#0a66c2]">LinkedUp</h1>
             </Link>
             
-            {/* Search bar - hidden on mobile */}
-            <div className="ml-6 hidden md:block">
-              <form onSubmit={handleSearch} className="relative">
-                <Input
-                  type="text"
-                  placeholder="Search"
-                  className="linkedin-input"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-[#666666]" />
-                </div>
-              </form>
-            </div>
+            {/* Search bar - hidden on mobile - only show if logged in */}
+            {user && (
+              <div className="ml-6 hidden md:block">
+                <form onSubmit={handleSearch} className="relative">
+                  <Input
+                    type="text"
+                    placeholder="Search"
+                    className="linkedin-input"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-[#666666]" />
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
           
-          {/* Nav links - hidden on mobile */}
-          <div className="hidden md:flex items-center justify-between space-x-4">
-            <Link href="/" className={`linkedin-nav-link ${location === '/' ? 'text-[#191919]' : ''}`}>
-              <Home className="linkedin-icon" />
-              <span>Home</span>
-            </Link>
-            <Link href="/network" className={`linkedin-nav-link ${location === '/network' ? 'text-[#191919]' : ''}`}>
-              <Users className="linkedin-icon" />
-              <span>Network</span>
-            </Link>
-            <Link href="/jobs" className="linkedin-nav-link">
-              <Briefcase className="linkedin-icon" />
-              <span>Jobs</span>
-            </Link>
-            <Link href="/messages" className="linkedin-nav-link">
-              <MessageSquare className="linkedin-icon" />
-              <span>Messages</span>
-            </Link>
-            <Link href="/notifications" className="linkedin-nav-link">
-              <Bell className="linkedin-icon" />
-              <span>Notifications</span>
-            </Link>
-            <Separator orientation="vertical" className="h-8" />
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex flex-col items-center justify-center cursor-pointer group outline-none">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={user?.profilePicture} alt={user?.name} />
-                  <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+          {/* Navigation for logged in users */}
+          {user ? (
+            <>
+              {/* Nav links - hidden on mobile */}
+              <div className="hidden md:flex items-center justify-between space-x-4">
+                <Link href="/" className={`linkedin-nav-link ${location === '/' ? 'text-[#191919]' : ''}`}>
+                  <Home className="linkedin-icon" />
+                  <span>Home</span>
+                </Link>
+                <Link href="/network" className={`linkedin-nav-link ${location === '/network' ? 'text-[#191919]' : ''}`}>
+                  <Users className="linkedin-icon" />
+                  <span>Network</span>
+                </Link>
+                <Link href="/jobs" className="linkedin-nav-link">
+                  <Briefcase className="linkedin-icon" />
+                  <span>Jobs</span>
+                </Link>
+                <Link href="/messages" className="linkedin-nav-link">
+                  <MessageSquare className="linkedin-icon" />
+                  <span>Messages</span>
+                </Link>
+                <Link href="/notifications" className="linkedin-nav-link">
+                  <Bell className="linkedin-icon" />
+                  <span>Notifications</span>
+                </Link>
+                <Separator orientation="vertical" className="h-8" />
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex flex-col items-center justify-center cursor-pointer group outline-none">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={user.profilePicture} alt={user.name} />
+                      <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex items-center text-xs text-[#666666]">
+                      <span>Me</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href={`/profile/${user.id}`} className="cursor-pointer">
+                        View Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings" className="cursor-pointer">
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              
+              {/* Mobile menu button */}
+              <div className="md:hidden flex items-center">
+                <button className="text-[#666666] hover:text-[#191919] focus:outline-none">
+                  <Menu className="h-6 w-6" />
+                </button>
+                <Avatar className="h-8 w-8 ml-4">
+                  <AvatarImage src={user.profilePicture} alt={user.name} />
+                  <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <div className="flex items-center text-xs text-[#666666]">
-                  <span>Me</span>
-                  <ChevronDown className="h-4 w-4" />
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href={`/profile/${user?.id}`} className="cursor-pointer">
-                    View Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="cursor-pointer">
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
-            <button className="text-[#666666] hover:text-[#191919] focus:outline-none">
-              <Menu className="h-6 w-6" />
-            </button>
-            <Avatar className="h-8 w-8 ml-4">
-              <AvatarImage src={user?.profilePicture} alt={user?.name} />
-              <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
-            </Avatar>
-          </div>
+              </div>
+            </>
+          ) : (
+            /* Navigation for guests */
+            <div className="flex items-center space-x-4">
+              <Link href="/login" className="text-[#0a66c2] font-medium hover:underline flex items-center">
+                <LogIn className="h-4 w-4 mr-1" />
+                Sign In
+              </Link>
+              <Link href="/register" className="bg-[#0a66c2] text-white px-4 py-1.5 rounded-full hover:bg-[#004182]">
+                Join Now
+              </Link>
+            </div>
+          )}
         </div>
       </nav>
     </header>
