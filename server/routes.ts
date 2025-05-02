@@ -487,6 +487,204 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Experience routes
+  app.get("/api/users/:id/experiences", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const experiences = await storage.getExperiencesByUserId(userId);
+      res.json(experiences);
+    } catch (error) {
+      console.error("Error fetching experiences:", error);
+      res.status(500).json({ message: "Error fetching experiences" });
+    }
+  });
+  
+  app.post(
+    "/api/experiences",
+    isAuthenticated,
+    validateBody(insertExperienceSchema.omit({ userId: true })),
+    async (req, res) => {
+      try {
+        const userId = (req.user as any).id;
+        
+        const experience = await storage.createExperience({
+          ...req.body,
+          userId,
+        });
+        
+        res.status(201).json(experience);
+      } catch (error) {
+        console.error("Error creating experience:", error);
+        res.status(500).json({ message: "Error creating experience" });
+      }
+    }
+  );
+  
+  app.patch(
+    "/api/experiences/:id",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const experienceId = parseInt(req.params.id);
+        const userId = (req.user as any).id;
+        
+        // Get the experience to verify ownership
+        const experience = await storage.getExperienceById(experienceId);
+        
+        if (!experience) {
+          return res.status(404).json({ message: "Experience not found" });
+        }
+        
+        if (experience.userId !== userId) {
+          return res.status(403).json({ message: "Not authorized to update this experience" });
+        }
+        
+        const updatedExperience = await storage.updateExperience(experienceId, req.body);
+        res.json(updatedExperience);
+      } catch (error) {
+        console.error("Error updating experience:", error);
+        res.status(500).json({ message: "Error updating experience" });
+      }
+    }
+  );
+  
+  app.delete(
+    "/api/experiences/:id",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const experienceId = parseInt(req.params.id);
+        const userId = (req.user as any).id;
+        
+        // Get the experience to verify ownership
+        const experience = await storage.getExperienceById(experienceId);
+        
+        if (!experience) {
+          return res.status(404).json({ message: "Experience not found" });
+        }
+        
+        if (experience.userId !== userId) {
+          return res.status(403).json({ message: "Not authorized to delete this experience" });
+        }
+        
+        const success = await storage.deleteExperience(experienceId);
+        
+        if (success) {
+          res.status(204).end();
+        } else {
+          res.status(500).json({ message: "Failed to delete experience" });
+        }
+      } catch (error) {
+        console.error("Error deleting experience:", error);
+        res.status(500).json({ message: "Error deleting experience" });
+      }
+    }
+  );
+  
+  // Education routes
+  app.get("/api/users/:id/educations", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const educations = await storage.getEducationsByUserId(userId);
+      res.json(educations);
+    } catch (error) {
+      console.error("Error fetching educations:", error);
+      res.status(500).json({ message: "Error fetching educations" });
+    }
+  });
+  
+  app.post(
+    "/api/educations",
+    isAuthenticated,
+    validateBody(insertEducationSchema.omit({ userId: true })),
+    async (req, res) => {
+      try {
+        const userId = (req.user as any).id;
+        
+        const education = await storage.createEducation({
+          ...req.body,
+          userId,
+        });
+        
+        res.status(201).json(education);
+      } catch (error) {
+        console.error("Error creating education:", error);
+        res.status(500).json({ message: "Error creating education" });
+      }
+    }
+  );
+  
+  app.patch(
+    "/api/educations/:id",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const educationId = parseInt(req.params.id);
+        const userId = (req.user as any).id;
+        
+        // Get the education to verify ownership
+        const education = await storage.getEducationById(educationId);
+        
+        if (!education) {
+          return res.status(404).json({ message: "Education not found" });
+        }
+        
+        if (education.userId !== userId) {
+          return res.status(403).json({ message: "Not authorized to update this education" });
+        }
+        
+        const updatedEducation = await storage.updateEducation(educationId, req.body);
+        res.json(updatedEducation);
+      } catch (error) {
+        console.error("Error updating education:", error);
+        res.status(500).json({ message: "Error updating education" });
+      }
+    }
+  );
+  
+  app.delete(
+    "/api/educations/:id",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const educationId = parseInt(req.params.id);
+        const userId = (req.user as any).id;
+        
+        // Get the education to verify ownership
+        const education = await storage.getEducationById(educationId);
+        
+        if (!education) {
+          return res.status(404).json({ message: "Education not found" });
+        }
+        
+        if (education.userId !== userId) {
+          return res.status(403).json({ message: "Not authorized to delete this education" });
+        }
+        
+        const success = await storage.deleteEducation(educationId);
+        
+        if (success) {
+          res.status(204).end();
+        } else {
+          res.status(500).json({ message: "Failed to delete education" });
+        }
+      } catch (error) {
+        console.error("Error deleting education:", error);
+        res.status(500).json({ message: "Error deleting education" });
+      }
+    }
+  );
+
   // Comment routes
   app.get("/api/posts/:postId/comments", async (req, res) => {
     try {
@@ -557,18 +755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // Experience routes
-  app.get("/api/users/:userId/experiences", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const experiences = await storage.getExperiencesByUserId(userId);
-      res.json(experiences);
-    } catch (error) {
-      console.error("Error fetching experiences:", error);
-      res.status(500).json({ message: "Error fetching experiences" });
-    }
-  });
-
+  // Add route to get a specific experience
   app.get("/api/experiences/:id", async (req, res) => {
     try {
       const experienceId = parseInt(req.params.id);
@@ -580,76 +767,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(experience);
     } catch (error) {
-      console.error("Error fetching experience:", error);
-      res.status(500).json({ message: "Error fetching experience" });
-    }
-  });
-
-  app.post(
-    "/api/experiences",
-    isAuthenticated,
-    validateBody(insertExperienceSchema.omit({ userId: true })),
-    async (req, res) => {
-      try {
-        const userId = (req.user as any).id;
-        const experience = await storage.createExperience({
-          ...req.body,
-          userId,
-        });
-        res.status(201).json(experience);
-      } catch (error) {
-        console.error("Error creating experience:", error);
-        res.status(500).json({ message: "Error creating experience" });
-      }
-    }
-  );
-
-  app.patch(
-    "/api/experiences/:id",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const experienceId = parseInt(req.params.id);
-        const experience = await storage.getExperienceById(experienceId);
-        
-        if (!experience) {
-          return res.status(404).json({ message: "Experience not found" });
-        }
-        
-        // Users can only update their own experiences
-        if (experience.userId !== (req.user as any).id) {
-          return res.status(403).json({ message: "Forbidden" });
-        }
-        
-        const updatedExperience = await storage.updateExperience(experienceId, req.body);
-        res.json(updatedExperience);
-      } catch (error) {
-        console.error("Error updating experience:", error);
-        res.status(500).json({ message: "Error updating experience" });
-      }
-    }
-  );
-
-  app.delete(
-    "/api/experiences/:id",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const experienceId = parseInt(req.params.id);
-        const experience = await storage.getExperienceById(experienceId);
-        
-        if (!experience) {
-          return res.status(404).json({ message: "Experience not found" });
-        }
-        
-        // Users can only delete their own experiences
-        if (experience.userId !== (req.user as any).id) {
-          return res.status(403).json({ message: "Forbidden" });
-        }
-        
-        await storage.deleteExperience(experienceId);
-        res.status(204).end();
-      } catch (error) {
         console.error("Error deleting experience:", error);
         res.status(500).json({ message: "Error deleting experience" });
       }
