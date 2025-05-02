@@ -142,11 +142,11 @@ export default function Navbar() {
           ) : (
             /* Navigation for guests */
             <div className="flex items-center space-x-4">
-              <Link href="/login" className="text-[#0a66c2] font-medium hover:underline flex items-center">
+              <Link href="/auth" className="text-[#0a66c2] font-medium hover:underline flex items-center">
                 <LogIn className="h-4 w-4 mr-1" />
                 Sign In
               </Link>
-              <Link href="/register" className="bg-[#0a66c2] text-white px-4 py-1.5 rounded-full hover:bg-[#004182]">
+              <Link href="/auth" className="bg-[#0a66c2] text-white px-4 py-1.5 rounded-full hover:bg-[#004182]">
                 Join Now
               </Link>
             </div>
