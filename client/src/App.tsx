@@ -38,6 +38,9 @@ function Router() {
       <Route path="/">
         {() => <AuthenticatedRoute component={Home} />}
       </Route>
+      <Route path="/profile">
+        {() => <AuthenticatedRoute component={Profile} />}
+      </Route>
       <Route path="/profile/:id">
         {(params) => <AuthenticatedRoute component={Profile} id={params.id} />}
       </Route>

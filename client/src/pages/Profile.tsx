@@ -14,12 +14,16 @@ import EducationSection from "@/components/EducationSection";
 export default function Profile() {
   // Get the id from the URL
   const params = useParams();
-  const profileId = params.id ? parseInt(params.id) : undefined;
   
+  // Get current user data
   const { data: currentUser } = useQuery({
     queryKey: ["/api/auth/user"]
   });
-
+  
+  // If no ID is provided in the URL, use the current user's ID
+  // This handles /profile route without an ID parameter
+  const profileId = params.id ? parseInt(params.id) : (currentUser?.id || undefined);
+  
   const { data: user, isLoading: isLoadingUser } = useQuery({
     queryKey: [`/api/users/${profileId}`],
     enabled: !!profileId
