@@ -4,9 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { loginSchema } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 import { 
   Form, 
   FormControl, 
@@ -23,8 +21,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Login() {
   const [location, navigate] = useLocation();
-  const { toast } = useToast();
+  const { user, loginMutation } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
+  
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
   
   // Define form with validation
   const form = useForm<z.infer<typeof loginSchema>>({
@@ -35,29 +40,17 @@ export default function Login() {
     }
   });
   
-  // Login mutation
-  const loginMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof loginSchema>) => {
-      const response = await apiRequest("POST", "/api/auth/login", data);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Login successful",
-        description: `Welcome back, ${data.name}!`
-      });
-      navigate("/");
-    },
-    onError: (error: any) => {
-      console.error("Login error:", error);
-      setAuthError(error.message || "Invalid username or password. Please try again.");
-    }
-  });
-  
   // Submit handler
   function onSubmit(data: z.infer<typeof loginSchema>) {
     setAuthError(null);
-    loginMutation.mutate(data);
+    loginMutation.mutate(data, {
+      onError: (error) => {
+        setAuthError(error.message || "Invalid username or password. Please try again.");
+      },
+      onSuccess: () => {
+        navigate("/");
+      }
+    });
   }
   
   // Update document title

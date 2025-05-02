@@ -4,9 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { insertUserSchema } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 import { 
   Form, 
   FormControl, 
@@ -37,8 +35,15 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function Register() {
   const [location, navigate] = useLocation();
-  const { toast } = useToast();
+  const { user, registerMutation } = useAuth();
   const [registrationError, setRegistrationError] = useState<string | null>(null);
+  
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
   
   // Define form with validation
   const form = useForm<RegisterFormData>({
@@ -54,31 +59,19 @@ export default function Register() {
     }
   });
   
-  // Registration mutation
-  const registerMutation = useMutation({
-    mutationFn: async (data: RegisterFormData) => {
-      // Remove confirmPassword as it's not part of the API schema
-      const { confirmPassword, ...registerData } = data;
-      const response = await apiRequest("POST", "/api/auth/register", registerData);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Registration successful",
-        description: `Welcome to LinkedUp, ${data.name}!`
-      });
-      navigate("/");
-    },
-    onError: (error: any) => {
-      console.error("Registration error:", error);
-      setRegistrationError(error.message || "Registration failed. Please try again.");
-    }
-  });
-  
   // Submit handler
   function onSubmit(data: RegisterFormData) {
     setRegistrationError(null);
-    registerMutation.mutate(data);
+    // Remove confirmPassword as it's not part of the API schema
+    const { confirmPassword, ...registerData } = data;
+    registerMutation.mutate(registerData, {
+      onError: (error) => {
+        setRegistrationError(error.message || "Registration failed. Please try again.");
+      },
+      onSuccess: () => {
+        navigate("/");
+      }
+    });
   }
   
   // Update document title
