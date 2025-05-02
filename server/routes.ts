@@ -767,24 +767,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(experience);
     } catch (error) {
-        console.error("Error deleting experience:", error);
-        res.status(500).json({ message: "Error deleting experience" });
-      }
-    }
-  );
-
-  // Education routes
-  app.get("/api/users/:userId/educations", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const educations = await storage.getEducationsByUserId(userId);
-      res.json(educations);
-    } catch (error) {
-      console.error("Error fetching educations:", error);
-      res.status(500).json({ message: "Error fetching educations" });
+      console.error("Error fetching experience:", error);
+      res.status(500).json({ message: "Error fetching experience" });
     }
   });
 
+  // Add route to get a specific education
   app.get("/api/educations/:id", async (req, res) => {
     try {
       const educationId = parseInt(req.params.id);
@@ -800,77 +788,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching education" });
     }
   });
-
-  app.post(
-    "/api/educations",
-    isAuthenticated,
-    validateBody(insertEducationSchema.omit({ userId: true })),
-    async (req, res) => {
-      try {
-        const userId = (req.user as any).id;
-        const education = await storage.createEducation({
-          ...req.body,
-          userId,
-        });
-        res.status(201).json(education);
-      } catch (error) {
-        console.error("Error creating education:", error);
-        res.status(500).json({ message: "Error creating education" });
-      }
-    }
-  );
-
-  app.patch(
-    "/api/educations/:id",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const educationId = parseInt(req.params.id);
-        const education = await storage.getEducationById(educationId);
-        
-        if (!education) {
-          return res.status(404).json({ message: "Education not found" });
-        }
-        
-        // Users can only update their own educations
-        if (education.userId !== (req.user as any).id) {
-          return res.status(403).json({ message: "Forbidden" });
-        }
-        
-        const updatedEducation = await storage.updateEducation(educationId, req.body);
-        res.json(updatedEducation);
-      } catch (error) {
-        console.error("Error updating education:", error);
-        res.status(500).json({ message: "Error updating education" });
-      }
-    }
-  );
-
-  app.delete(
-    "/api/educations/:id",
-    isAuthenticated,
-    async (req, res) => {
-      try {
-        const educationId = parseInt(req.params.id);
-        const education = await storage.getEducationById(educationId);
-        
-        if (!education) {
-          return res.status(404).json({ message: "Education not found" });
-        }
-        
-        // Users can only delete their own educations
-        if (education.userId !== (req.user as any).id) {
-          return res.status(403).json({ message: "Forbidden" });
-        }
-        
-        await storage.deleteEducation(educationId);
-        res.status(204).end();
-      } catch (error) {
-        console.error("Error deleting education:", error);
-        res.status(500).json({ message: "Error deleting education" });
-      }
-    }
-  );
 
   const httpServer = createServer(app);
   return httpServer;
