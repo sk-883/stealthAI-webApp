@@ -61,15 +61,17 @@ export default function ExperienceForm({ experience, onSuccess }: ExperienceForm
   const { mutate: saveExperience, isPending } = useMutation({
     mutationFn: async (values: ExperienceFormValues) => {
       if (experience) {
-        return await apiRequest(`/api/experiences/${experience.id}`, {
-          method: "PATCH",
-          body: JSON.stringify(values),
-        });
+        return await apiRequest(
+          "PATCH",
+          `/api/experiences/${experience.id}`,
+          values
+        );
       } else {
-        return await apiRequest("/api/experiences", {
-          method: "POST",
-          body: JSON.stringify(values),
-        });
+        return await apiRequest(
+          "POST",
+          "/api/experiences",
+          values
+        );
       }
     },
     onSuccess: () => {

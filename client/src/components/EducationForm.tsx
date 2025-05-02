@@ -56,15 +56,17 @@ export default function EducationForm({ education, onSuccess }: EducationFormPro
   const { mutate: saveEducation, isPending } = useMutation({
     mutationFn: async (values: EducationFormValues) => {
       if (education) {
-        return await apiRequest(`/api/educations/${education.id}`, {
-          method: "PATCH",
-          body: JSON.stringify(values),
-        });
+        return await apiRequest(
+          "PATCH",
+          `/api/educations/${education.id}`,
+          values
+        );
       } else {
-        return await apiRequest("/api/educations", {
-          method: "POST",
-          body: JSON.stringify(values),
-        });
+        return await apiRequest(
+          "POST",
+          "/api/educations",
+          values
+        );
       }
     },
     onSuccess: () => {

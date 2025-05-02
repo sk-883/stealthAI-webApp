@@ -34,14 +34,14 @@ export default function EducationSection({ userId, isCurrentUser }: EducationSec
 
   const { data: educations = [], isLoading, refetch } = useQuery({
     queryKey: ['/api/users', userId, 'educations'],
-    queryFn: () => apiRequest(`/api/users/${userId}/educations`),
   });
 
   async function handleDelete(educationId: number) {
     try {
-      await apiRequest(`/api/educations/${educationId}`, {
-        method: 'DELETE',
-      });
+      await apiRequest(
+        'DELETE',
+        `/api/educations/${educationId}`
+      );
       
       toast({
         title: "Education deleted",

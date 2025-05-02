@@ -35,14 +35,14 @@ export default function ExperienceSection({ userId, isCurrentUser }: ExperienceS
 
   const { data: experiences = [], isLoading, refetch } = useQuery({
     queryKey: ['/api/users', userId, 'experiences'],
-    queryFn: () => apiRequest(`/api/users/${userId}/experiences`),
   });
 
   async function handleDelete(experienceId: number) {
     try {
-      await apiRequest(`/api/experiences/${experienceId}`, {
-        method: 'DELETE',
-      });
+      await apiRequest(
+        'DELETE',
+        `/api/experiences/${experienceId}`
+      );
       
       toast({
         title: "Experience deleted",
