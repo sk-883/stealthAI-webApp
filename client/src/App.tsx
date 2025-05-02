@@ -9,6 +9,10 @@ import Profile from "@/pages/Profile";
 import Network from "@/pages/Network";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import Jobs from "@/pages/Jobs";
+import Messages from "@/pages/Messages";
+import Notifications from "@/pages/Notifications";
+import Settings from "@/pages/Settings";
 import Navbar from "@/components/Navbar";
 import MobileNavigation from "@/components/MobileNavigation";
 
@@ -46,6 +50,18 @@ function Router() {
       </Route>
       <Route path="/network">
         {() => <AuthenticatedRoute component={Network} />}
+      </Route>
+      <Route path="/jobs">
+        {() => <AuthenticatedRoute component={Jobs} />}
+      </Route>
+      <Route path="/messages">
+        {() => <AuthenticatedRoute component={Messages} />}
+      </Route>
+      <Route path="/notifications">
+        {() => <AuthenticatedRoute component={Notifications} />}
+      </Route>
+      <Route path="/settings">
+        {() => <AuthenticatedRoute component={Settings} />}
       </Route>
       <Route component={NotFound} />
     </Switch>
