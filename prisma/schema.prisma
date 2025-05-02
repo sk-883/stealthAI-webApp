@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int           @id @default(autoincrement())
+  username       String        @unique
+  password       String
+  name           String
+  headline       String?
+  bio            String?
+  profilePicture String?       @map("profile_picture")
+  coverPicture   String?       @map("cover_picture")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  
+  // Relations
+  posts              Post[]
+  userConnections    Connection[] @relation("UserConnections")
+  pendingConnections Connection[] @relation("PendingConnections")
+  experiences        Experience[]
+  educations         Education[]
+  comments           Comment[]
+  postLikes          PostLike[]
+
+  @@map("users")
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  content   String
+  imageUrl  String?   @map("image_url")
+  likes     Int       @default(0)
+  comments  Int       @default(0)
+  shares    Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postLikes PostLike[]
+  postComments Comment[]
+
+  @@map("posts")
+}
+
+model Connection {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @map("user_id")
+  connectedUserId Int       @map("connected_user_id")
+  status          String    @default("pending")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  user          User @relation("UserConnections", fields: [userId], references: [id], onDelete: Cascade)
+  connectedUser User @relation("PendingConnections", fields: [connectedUserId], references: [id], onDelete: Cascade)
+
+  @@map("connections")
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement())
+  postId    Int       @map("post_id")
+  userId    Int       @map("user_id")
+  content   String
+  createdAt DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Experience {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @map("user_id")
+  title         String
+  company       String
+  location      String?
+  isCurrentRole Boolean?  @default(false) @map("is_current_role")
+  startDate     String    @map("start_date")
+  endDate       String?   @map("end_date")
+  description   String?
+  companyLogo   String?   @map("company_logo")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("experiences")
+}
+
+model Education {
+  id           Int       @id @default(autoincrement())
+  userId       Int       @map("user_id")
+  school       String
+  degree       String?
+  fieldOfStudy String?   @map("field_of_study")
+  startDate    String    @map("start_date")
+  endDate      String?   @map("end_date")
+  description  String?
+  schoolLogo   String?   @map("school_logo")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("educations")
+}
+
+model PostLike {
+  id        Int       @id @default(autoincrement())
+  postId    Int       @map("post_id")
+  userId    Int       @map("user_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("post_likes")
+}
