@@ -186,7 +186,7 @@ export class DatabaseStorage implements IStorage {
     // Update comment count
     await db
       .update(posts)
-      .set({ comments: db.sql`${posts.comments} + 1` })
+      .set({ comments: db.raw(`${posts.name}.comments + 1`) })
       .where(eq(posts.id, insertComment.postId));
     
     return comment;
@@ -205,7 +205,7 @@ export class DatabaseStorage implements IStorage {
       // Update comment count
       await db
         .update(posts)
-        .set({ comments: db.sql`${posts.comments} - 1` })
+        .set({ comments: db.raw(`${posts.name}.comments - 1`) })
         .where(eq(posts.id, deletedComment.postId));
       return true;
     }
@@ -331,19 +331,25 @@ export class DatabaseStorage implements IStorage {
     const connectedUserIds = userConnections.map(conn => conn.connectedUserId);
     
     // Get all users who are not the current user and not already connected
-    return db
-      .select()
-      .from(users)
-      .where(
-        and(
-          ne(users.id, userId),
-          // Only include users not in the connectedUserIds array
-          connectedUserIds.length > 0 
-            ? db.sql`${users.id} NOT IN (${connectedUserIds.join(', ')})` 
-            : db.sql`1=1` // If no connections, return all users except current user
+    if (connectedUserIds.length > 0) {
+      return db
+        .select()
+        .from(users)
+        .where(
+          and(
+            ne(users.id, userId),
+            db.raw(`${users.name}.id NOT IN (${connectedUserIds.join(', ')})`)
+          )
         )
-      )
-      .limit(5);
+        .limit(5);
+    } else {
+      // If no connections, return all users except current user
+      return db
+        .select()
+        .from(users)
+        .where(ne(users.id, userId))
+        .limit(5);
+    }
   }
 }
 
@@ -755,5 +761,5 @@ export class MemStorage implements IStorage {
 }
 
 // Choose the appropriate storage implementation
-// export const storage = new DatabaseStorage();
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
+// export const storage = new MemStorage();
