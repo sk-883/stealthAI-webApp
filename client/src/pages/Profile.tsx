@@ -8,6 +8,8 @@ import { Pencil, MapPin, Briefcase, GraduationCap, UserPlus, Mail } from "lucide
 import Post from "@/components/Post";
 import NewsSection from "@/components/NewsSection";
 import FooterLinks from "@/components/FooterLinks";
+import ExperienceSection from "@/components/ExperienceSection";
+import EducationSection from "@/components/EducationSection";
 
 export default function Profile() {
   // Get the id from the URL
@@ -143,56 +145,11 @@ export default function Profile() {
             <p className="text-[#191919]">{user.bio || "No bio information available."}</p>
           </div>
           
-          {/* Experience and Education */}
-          <div className="linkedin-card p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#191919]">Experience</h2>
-              {isOwnProfile && (
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            
-            <div className="mb-6">
-              <div className="flex">
-                <Avatar className="h-12 w-12 mr-4">
-                  <AvatarImage src="https://logo.clearbit.com/techcorp.com" alt="TechCorp" />
-                  <AvatarFallback>TC</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-medium text-[#191919]">Software Engineer</h3>
-                  <p className="text-sm text-[#666666]">TechCorp · Full-time</p>
-                  <p className="text-sm text-[#666666]">Jan 2020 - Present · 3 yrs 9 mos</p>
-                  <p className="text-sm text-[#666666]">San Francisco, California</p>
-                  <p className="text-sm mt-2">Building innovative software solutions for enterprise clients.</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-between items-center mb-4 mt-8">
-              <h2 className="text-xl font-bold text-[#191919]">Education</h2>
-              {isOwnProfile && (
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            
-            <div>
-              <div className="flex">
-                <Avatar className="h-12 w-12 mr-4">
-                  <AvatarImage src="https://logo.clearbit.com/stanford.edu" alt="Stanford University" />
-                  <AvatarFallback>SU</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-medium text-[#191919]">Stanford University</h3>
-                  <p className="text-sm text-[#666666]">Master's degree, Computer Science</p>
-                  <p className="text-sm text-[#666666]">2017 - 2019</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Experience Section */}
+          <ExperienceSection userId={profileId!} isCurrentUser={isOwnProfile} />
+          
+          {/* Education Section */}
+          <EducationSection userId={profileId!} isCurrentUser={isOwnProfile} />
           
           {/* Posts */}
           <div className="space-y-5">
