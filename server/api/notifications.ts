@@ -1,6 +1,8 @@
 import { Router } from 'express';
-import { prisma } from '../prisma';
+import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+
+const prisma = new PrismaClient();
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req, res, next) => {

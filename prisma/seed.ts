@@ -1,261 +1,260 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { hashPassword } from '../server/auth-helpers';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Starting seed...');
-
-  // Clear existing data
-  await prisma.postLike.deleteMany({});
-  await prisma.comment.deleteMany({});
-  await prisma.post.deleteMany({});
-  await prisma.experience.deleteMany({});
-  await prisma.education.deleteMany({});
-  await prisma.connection.deleteMany({});
-  await prisma.user.deleteMany({});
+  console.log('Start seeding database...');
 
   // Create demo users
-  const hashedPassword = await bcrypt.hash('password123', 10);
+  const hashedPassword = await hashPassword('password123');
   
-  const alexJohnson = await prisma.user.create({
-    data: {
-      username: 'alexjohnson',
+  const alice = await prisma.user.upsert({
+    where: { username: 'alice' },
+    update: {},
+    create: {
+      username: 'alice',
       password: hashedPassword,
-      name: 'Alex Johnson',
-      headline: 'Senior Software Engineer at Tech Innovations',
-      bio: 'Passionate about building scalable applications and solving complex problems.',
-      profilePicture: 'https://randomuser.me/api/portraits/men/1.jpg'
-    }
+      name: 'Alice Johnson',
+      headline: 'Software Engineer | React | Node.js | TypeScript',
+      bio: 'Passionate about building user-friendly web applications and solving complex problems.',
+      profilePicture: 'https://randomuser.me/api/portraits/women/12.jpg'
+    },
   });
 
-  const sarahLee = await prisma.user.create({
-    data: {
-      username: 'sarahlee',
+  const bob = await prisma.user.upsert({
+    where: { username: 'bob' },
+    update: {},
+    create: {
+      username: 'bob',
       password: hashedPassword,
-      name: 'Sarah Lee',
-      headline: 'Product Manager at Creative Solutions',
+      name: 'Bob Smith',
+      headline: 'Product Manager | UX Design | Growth Strategy',
       bio: 'Helping teams build products that customers love.',
-      profilePicture: 'https://randomuser.me/api/portraits/women/2.jpg'
-    }
+      profilePicture: 'https://randomuser.me/api/portraits/men/45.jpg'
+    },
   });
 
-  const michaelChen = await prisma.user.create({
-    data: {
-      username: 'michaelchen',
+  const charlie = await prisma.user.upsert({
+    where: { username: 'charlie' },
+    update: {},
+    create: {
+      username: 'charlie',
       password: hashedPassword,
-      name: 'Michael Chen',
-      headline: 'Data Scientist at DataMinds',
-      bio: 'Leveraging data to drive business decisions.',
-      profilePicture: 'https://randomuser.me/api/portraits/men/3.jpg'
-    }
+      name: 'Charlie Davis',
+      headline: 'Data Scientist | Machine Learning | Python',
+      bio: 'Turning data into actionable insights.',
+      profilePicture: 'https://randomuser.me/api/portraits/women/22.jpg'
+    },
   });
 
-  const emiliaRodriguez = await prisma.user.create({
-    data: {
-      username: 'emiliarodriguez',
-      password: hashedPassword,
-      name: 'Emilia Rodriguez',
-      headline: 'UX Designer at DesignForward',
-      bio: 'Creating intuitive and beautiful user experiences.',
-      profilePicture: 'https://randomuser.me/api/portraits/women/4.jpg'
-    }
+  // Create connections between users
+  await prisma.connection.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      userId: alice.id,
+      connectedUserId: bob.id,
+      status: 'accepted',
+    },
   });
 
-  // Create posts
-  const alexPost1 = await prisma.post.create({
-    data: {
-      userId: alexJohnson.id,
-      content: "Just launched a new feature at work that improves load times by 40%! #webperf #engineering",
-      likes: 15,
-      comments: 3,
-      shares: 2,
-    }
+  await prisma.connection.upsert({
+    where: { id: 2 },
+    update: {},
+    create: {
+      userId: bob.id,
+      connectedUserId: alice.id,
+      status: 'accepted',
+    },
   });
 
-  const sarahPost1 = await prisma.post.create({
-    data: {
-      userId: sarahLee.id,
-      content: "Excited to announce that our product has reached 10,000 users! Thanks to our amazing team for their hard work.",
-      likes: 42,
-      comments: 7,
-      shares: 5,
-    }
+  await prisma.connection.upsert({
+    where: { id: 3 },
+    update: {},
+    create: {
+      userId: charlie.id,
+      connectedUserId: alice.id,
+      status: 'pending',
+    },
   });
 
-  const michaelPost1 = await prisma.post.create({
-    data: {
-      userId: michaelChen.id,
-      content: "Just finished a new data analysis project using Python and TensorFlow. The insights we discovered are going to revolutionize our approach!",
-      likes: 28,
-      comments: 4,
-      shares: 3,
-    }
+  // Create sample posts
+  const post1 = await prisma.post.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      content: 'Just completed a new project using React and TypeScript. Really enjoying the type safety!',
+      userId: alice.id,
+    },
   });
 
-  const emiliaPost1 = await prisma.post.create({
-    data: {
-      userId: emiliaRodriguez.id,
-      content: "Just finished a new design project. Check out these wireframes for our upcoming mobile app!",
-      imageUrl: "https://placehold.co/600x400/png",
-      likes: 36,
-      comments: 9,
-      shares: 4,
-    }
+  const post2 = await prisma.post.upsert({
+    where: { id: 2 },
+    update: {},
+    create: {
+      content: 'Excited to announce that our team has launched a new product feature today!',
+      userId: bob.id,
+    },
   });
 
   // Create comments
-  await prisma.comment.create({
-    data: {
-      postId: alexPost1.id,
-      userId: sarahLee.id,
-      content: "That's amazing! What techniques did you use to achieve that optimization?"
-    }
+  await prisma.comment.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      content: 'Looks great! Would love to hear more about your project.',
+      postId: post1.id,
+      userId: bob.id,
+    },
   });
 
-  await prisma.comment.create({
-    data: {
-      postId: alexPost1.id,
-      userId: michaelChen.id,
-      content: "Great work! Would love to learn more about your approach."
-    }
-  });
-
-  await prisma.comment.create({
-    data: {
-      postId: sarahPost1.id,
-      userId: alexJohnson.id,
-      content: "Congratulations! What a milestone!"
-    }
-  });
-
-  // Create connections
-  await prisma.connection.create({
-    data: {
-      userId: alexJohnson.id,
-      connectedUserId: sarahLee.id,
-      status: "accepted"
-    }
-  });
-
-  await prisma.connection.create({
-    data: {
-      userId: sarahLee.id,
-      connectedUserId: alexJohnson.id,
-      status: "accepted"
-    }
-  });
-
-  await prisma.connection.create({
-    data: {
-      userId: michaelChen.id,
-      connectedUserId: alexJohnson.id,
-      status: "pending"
-    }
-  });
-
-  // Create experiences
-  await prisma.experience.create({
-    data: {
-      userId: alexJohnson.id,
-      title: "Senior Software Engineer",
-      company: "Tech Innovations",
-      location: "San Francisco, CA",
-      isCurrentRole: true,
-      startDate: "2020-01",
-      description: "Leading development of scalable web applications using React and Node.js."
-    }
-  });
-
-  await prisma.experience.create({
-    data: {
-      userId: alexJohnson.id,
-      title: "Software Engineer",
-      company: "CodeCraft",
-      location: "Seattle, WA",
-      isCurrentRole: false,
-      startDate: "2017-06",
-      endDate: "2019-12",
-      description: "Developed and maintained backend services using Java and Spring Boot."
-    }
-  });
-
-  await prisma.experience.create({
-    data: {
-      userId: sarahLee.id,
-      title: "Product Manager",
-      company: "Creative Solutions",
-      location: "New York, NY",
-      isCurrentRole: true,
-      startDate: "2019-03",
-      description: "Managing the product lifecycle from conception to launch."
-    }
-  });
-
-  // Create educations
-  await prisma.education.create({
-    data: {
-      userId: alexJohnson.id,
-      school: "University of California, Berkeley",
-      degree: "Bachelor of Science",
-      fieldOfStudy: "Computer Science",
-      startDate: "2013-09",
-      endDate: "2017-05"
-    }
-  });
-
-  await prisma.education.create({
-    data: {
-      userId: sarahLee.id,
-      school: "Stanford University",
-      degree: "Master of Business Administration",
-      fieldOfStudy: "Business Administration",
-      startDate: "2017-09",
-      endDate: "2019-06"
-    }
-  });
-
-  await prisma.education.create({
-    data: {
-      userId: michaelChen.id,
-      school: "Massachusetts Institute of Technology",
-      degree: "Master of Science",
-      fieldOfStudy: "Data Science",
-      startDate: "2015-09",
-      endDate: "2017-05"
-    }
+  await prisma.comment.upsert({
+    where: { id: 2 },
+    update: {},
+    create: {
+      content: 'Congratulations on the launch!',
+      postId: post2.id,
+      userId: alice.id,
+    },
   });
 
   // Create post likes
-  await prisma.postLike.create({
-    data: {
-      postId: alexPost1.id,
-      userId: sarahLee.id
-    }
+  await prisma.postLike.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      postId: post1.id,
+      userId: bob.id,
+    },
   });
 
-  await prisma.postLike.create({
-    data: {
-      postId: sarahPost1.id,
-      userId: alexJohnson.id
-    }
+  await prisma.postLike.upsert({
+    where: { id: 2 },
+    update: {},
+    create: {
+      postId: post2.id,
+      userId: alice.id,
+    },
   });
 
-  await prisma.postLike.create({
-    data: {
-      postId: michaelPost1.id,
-      userId: alexJohnson.id
-    }
+  // Create experiences
+  await prisma.experience.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      title: 'Software Engineer',
+      company: 'Tech Solutions Inc.',
+      location: 'San Francisco, CA',
+      startDate: new Date('2020-01-01'),
+      current: true,
+      description: 'Developing web applications using React, Node.js, and TypeScript.',
+      userId: alice.id,
+    },
   });
 
-  console.log('Seed completed successfully!');
+  await prisma.experience.upsert({
+    where: { id: 2 },
+    update: {},
+    create: {
+      title: 'Product Manager',
+      company: 'InnovateTech',
+      location: 'Seattle, WA',
+      startDate: new Date('2019-03-01'),
+      current: true,
+      description: 'Leading product development for a SaaS platform.',
+      userId: bob.id,
+    },
+  });
+
+  // Create education
+  await prisma.education.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      school: 'University of California, Berkeley',
+      degree: 'Bachelor of Science',
+      fieldOfStudy: 'Computer Science',
+      startDate: new Date('2016-09-01'),
+      endDate: new Date('2020-05-01'),
+      description: 'Focused on software engineering and algorithms.',
+      userId: alice.id,
+    },
+  });
+
+  await prisma.education.upsert({
+    where: { id: 2 },
+    update: {},
+    create: {
+      school: 'Stanford University',
+      degree: 'MBA',
+      fieldOfStudy: 'Business Administration',
+      startDate: new Date('2017-09-01'),
+      endDate: new Date('2019-05-01'),
+      description: 'Specialized in product management and entrepreneurship.',
+      userId: bob.id,
+    },
+  });
+
+  // Create messages
+  await prisma.message.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      content: 'Hi Bob, how are you doing?',
+      senderId: alice.id,
+      receiverId: bob.id,
+      isRead: true,
+    },
+  });
+
+  await prisma.message.upsert({
+    where: { id: 2 },
+    update: {},
+    create: {
+      content: 'Hey Alice! I\'m doing well, thanks for asking. How about you?',
+      senderId: bob.id,
+      receiverId: alice.id,
+      isRead: false,
+    },
+  });
+
+  // Create notifications
+  await prisma.notification.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      userId: alice.id,
+      actorId: bob.id,
+      type: 'like',
+      content: 'Bob Smith liked your post',
+      entityId: post1.id,
+      entityType: 'post',
+    },
+  });
+
+  await prisma.notification.upsert({
+    where: { id: 2 },
+    update: {},
+    create: {
+      userId: bob.id,
+      actorId: alice.id,
+      type: 'comment',
+      content: 'Alice Johnson commented on your post',
+      entityId: post2.id,
+      entityType: 'post',
+    },
+  });
+
+  console.log('Seeding completed!');
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
+  .then(async () => {
     await prisma.$disconnect();
+  })
+  .catch(async (e) => {
+    console.error(e);
+    await prisma.$disconnect();
+    process.exit(1);
   });

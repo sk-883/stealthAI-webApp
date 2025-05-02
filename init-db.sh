@@ -11,4 +11,7 @@ done
 echo "Migrating database..."
 npx prisma migrate deploy
 
+echo "Seeding database..."
+npx tsx prisma/seed.ts
+
 echo "Database initialization complete!"
