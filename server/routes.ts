@@ -8,6 +8,7 @@ import {
   insertCommentSchema,
   insertExperienceSchema,
   insertEducationSchema,
+  insertPostLikeSchema,
   loginSchema 
 } from "@shared/schema";
 import session from "express-session";
