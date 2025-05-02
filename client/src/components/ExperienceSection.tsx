@@ -18,7 +18,12 @@ import {
 } from "lucide-react";
 import type { Experience } from "@shared/schema";
 import ExperienceForm from "./ExperienceForm";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogTrigger,
+  DialogTitle
+} from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -109,6 +114,7 @@ export default function ExperienceSection({ userId, isCurrentUser }: ExperienceS
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[550px]">
+              <DialogTitle>Add Experience</DialogTitle>
               <ExperienceForm 
                 onSuccess={() => {
                   setIsAddFormOpen(false);
@@ -159,6 +165,7 @@ export default function ExperienceSection({ userId, isCurrentUser }: ExperienceS
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[550px]">
+                          <DialogTitle>Edit Experience</DialogTitle>
                           {editingExperience && (
                             <ExperienceForm 
                               experience={editingExperience}

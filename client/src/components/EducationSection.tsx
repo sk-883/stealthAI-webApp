@@ -17,7 +17,12 @@ import {
 } from "lucide-react";
 import type { Education } from "@shared/schema";
 import EducationForm from "./EducationForm";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogTrigger,
+  DialogTitle
+} from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -98,6 +103,7 @@ export default function EducationSection({ userId, isCurrentUser }: EducationSec
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[550px]">
+              <DialogTitle>Add Education</DialogTitle>
               <EducationForm 
                 onSuccess={() => {
                   setIsAddFormOpen(false);
@@ -151,6 +157,7 @@ export default function EducationSection({ userId, isCurrentUser }: EducationSec
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[550px]">
+                          <DialogTitle>Edit Education</DialogTitle>
                           {editingEducation && (
                             <EducationForm 
                               education={editingEducation}
