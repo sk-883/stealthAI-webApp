@@ -3,7 +3,9 @@ import {
   posts, type Post, type InsertPost,
   connections, type Connection, type InsertConnection,
   comments, type Comment, type InsertComment,
-  type PostWithUser, type UserWithConnections,
+  experiences, type Experience, type InsertExperience,
+  educations, type Education, type InsertEducation,
+  type PostWithUser, type UserWithConnections, type UserWithExperiences, type UserWithEducations
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, ne } from "drizzle-orm";

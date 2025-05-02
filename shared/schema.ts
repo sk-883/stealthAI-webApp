@@ -15,12 +15,6 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const usersRelations = relations(users, ({ many }) => ({
-  posts: many(posts),
-  connections: many(connections, { relationName: "user_connections" }),
-  pendingConnections: many(connections, { relationName: "pending_connections" }),
-}));
-
 export const posts = pgTable("posts", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -32,13 +26,6 @@ export const posts = pgTable("posts", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const postsRelations = relations(posts, ({ one }) => ({
-  user: one(users, {
-    fields: [posts.userId],
-    references: [users.id],
-  }),
-}));
-
 export const connections = pgTable("connections", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -46,6 +33,57 @@ export const connections = pgTable("connections", {
   status: text("status").notNull().default("pending"), // pending, accepted, rejected
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const comments = pgTable("comments", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const experiences = pgTable("experiences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  company: text("company").notNull(),
+  location: text("location"),
+  isCurrentRole: boolean("is_current_role").default(false),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date"),
+  description: text("description"),
+  companyLogo: text("company_logo"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const educations = pgTable("educations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  school: text("school").notNull(),
+  degree: text("degree"),
+  fieldOfStudy: text("field_of_study"),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date"),
+  description: text("description"),
+  schoolLogo: text("school_logo"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  posts: many(posts),
+  connections: many(connections, { relationName: "user_connections" }),
+  pendingConnections: many(connections, { relationName: "pending_connections" }),
+  experiences: many(experiences),
+  educations: many(educations),
+}));
+
+export const postsRelations = relations(posts, ({ one }) => ({
+  user: one(users, {
+    fields: [posts.userId],
+    references: [users.id],
+  }),
+}));
 
 export const connectionsRelations = relations(connections, ({ one }) => ({
   user: one(users, {
@@ -60,14 +98,6 @@ export const connectionsRelations = relations(connections, ({ one }) => ({
   }),
 }));
 
-export const comments = pgTable("comments", {
-  id: serial("id").primaryKey(),
-  postId: integer("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  content: text("content").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 export const commentsRelations = relations(comments, ({ one }) => ({
   post: one(posts, {
     fields: [comments.postId],
@@ -75,6 +105,20 @@ export const commentsRelations = relations(comments, ({ one }) => ({
   }),
   user: one(users, {
     fields: [comments.userId],
+    references: [users.id],
+  }),
+}));
+
+export const experiencesRelations = relations(experiences, ({ one }) => ({
+  user: one(users, {
+    fields: [experiences.userId],
+    references: [users.id],
+  }),
+}));
+
+export const educationsRelations = relations(educations, ({ one }) => ({
+  user: one(users, {
+    fields: [educations.userId],
     references: [users.id],
   }),
 }));
@@ -108,6 +152,29 @@ export const insertCommentSchema = createInsertSchema(comments).pick({
   content: true,
 });
 
+export const insertExperienceSchema = createInsertSchema(experiences).pick({
+  userId: true,
+  title: true,
+  company: true,
+  location: true,
+  isCurrentRole: true,
+  startDate: true,
+  endDate: true,
+  description: true,
+  companyLogo: true,
+});
+
+export const insertEducationSchema = createInsertSchema(educations).pick({
+  userId: true,
+  school: true,
+  degree: true,
+  fieldOfStudy: true,
+  startDate: true,
+  endDate: true,
+  description: true,
+  schoolLogo: true,
+});
+
 // Login schema
 export const loginSchema = z.object({
   username: z.string().min(3),
@@ -123,6 +190,10 @@ export type Connection = typeof connections.$inferSelect;
 export type InsertConnection = z.infer<typeof insertConnectionSchema>;
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
+export type Experience = typeof experiences.$inferSelect;
+export type InsertExperience = z.infer<typeof insertExperienceSchema>;
+export type Education = typeof educations.$inferSelect;
+export type InsertEducation = z.infer<typeof insertEducationSchema>;
 export type Login = z.infer<typeof loginSchema>;
 
 // Extended Types with Relations
@@ -132,4 +203,17 @@ export type PostWithUser = Post & {
 
 export type UserWithConnections = User & {
   connections: Connection[];
+};
+
+export type UserWithExperiences = User & {
+  experiences: Experience[];
+};
+
+export type UserWithEducations = User & {
+  educations: Education[];
+};
+
+export type UserWithProfile = User & {
+  experiences: Experience[];
+  educations: Education[];
 };
