@@ -5,6 +5,7 @@ import {
   type Comment, type InsertComment,
   type Experience, type InsertExperience,
   type Education, type InsertEducation,
+  type PostLike, type InsertPostLike,
   type PostWithUser, type UserWithConnections, type UserWithExperiences, type UserWithEducations
 } from "@shared/schema";
 import { prisma } from "./prisma";
@@ -65,30 +66,28 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    return prisma.user.findUnique({
+      where: { id }
+    }) as Promise<User | undefined>;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    return prisma.user.findUnique({
+      where: { username }
+    }) as Promise<User | undefined>;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
-    return user;
+    return prisma.user.create({
+      data: insertUser
+    }) as Promise<User>;
   }
 
   async updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined> {
-    const [updatedUser] = await db
-      .update(users)
-      .set(data)
-      .where(eq(users.id, id))
-      .returning();
-    return updatedUser;
+    return prisma.user.update({
+      where: { id },
+      data
+    }) as Promise<User>;
   }
 
   // Post operations
@@ -97,168 +96,189 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPostById(id: number): Promise<Post | undefined> {
-    const [post] = await db.select().from(posts).where(eq(posts.id, id));
-    return post;
+    return prisma.post.findUnique({
+      where: { id }
+    }) as Promise<Post | undefined>;
   }
 
   async getPostsByUserId(userId: number): Promise<Post[]> {
-    return db.select().from(posts).where(eq(posts.userId, userId)).orderBy(desc(posts.createdAt));
+    return prisma.post.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    }) as Promise<Post[]>;
   }
 
   async createPost(insertPost: InsertPost): Promise<Post> {
-    const [post] = await db
-      .insert(posts)
-      .values(insertPost)
-      .returning();
-    return post;
+    return prisma.post.create({
+      data: insertPost
+    }) as Promise<Post>;
   }
 
   async updatePost(id: number, data: Partial<InsertPost>): Promise<Post | undefined> {
-    const [updatedPost] = await db
-      .update(posts)
-      .set(data)
-      .where(eq(posts.id, id))
-      .returning();
-    return updatedPost;
+    return prisma.post.update({
+      where: { id },
+      data
+    }) as Promise<Post>;
   }
 
   async deletePost(id: number): Promise<boolean> {
-    const result = await db.delete(posts).where(eq(posts.id, id)).returning({ id: posts.id });
-    return result.length > 0;
+    try {
+      await prisma.post.delete({
+        where: { id }
+      });
+      return true;
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      return false;
+    }
   }
 
   // Connection operations
   async getConnections(userId: number): Promise<Connection[]> {
-    return db
-      .select()
-      .from(connections)
-      .where(
-        and(
-          eq(connections.status, "accepted"),
-          eq(connections.userId, userId)
-        )
-      );
+    return prisma.connection.findMany({
+      where: {
+        userId,
+        status: 'accepted'
+      }
+    }) as Promise<Connection[]>;
   }
 
   async getPendingConnections(userId: number): Promise<Connection[]> {
-    return db
-      .select()
-      .from(connections)
-      .where(
-        and(
-          eq(connections.status, "pending"),
-          eq(connections.connectedUserId, userId)
-        )
-      );
+    return prisma.connection.findMany({
+      where: {
+        connectedUserId: userId,
+        status: 'pending'
+      }
+    }) as Promise<Connection[]>;
   }
 
   async createConnection(insertConnection: InsertConnection): Promise<Connection> {
-    const [connection] = await db
-      .insert(connections)
-      .values(insertConnection)
-      .returning();
-    return connection;
+    return prisma.connection.create({
+      data: insertConnection
+    }) as Promise<Connection>;
   }
 
   async updateConnectionStatus(id: number, status: string): Promise<Connection | undefined> {
-    const [updatedConnection] = await db
-      .update(connections)
-      .set({ status })
-      .where(eq(connections.id, id))
-      .returning();
-    return updatedConnection;
+    return prisma.connection.update({
+      where: { id },
+      data: { status }
+    }) as Promise<Connection>;
   }
 
   async deleteConnection(id: number): Promise<boolean> {
-    const result = await db.delete(connections).where(eq(connections.id, id)).returning({ id: connections.id });
-    return result.length > 0;
+    try {
+      await prisma.connection.delete({
+        where: { id }
+      });
+      return true;
+    } catch (error) {
+      console.error('Error deleting connection:', error);
+      return false;
+    }
   }
 
   // Comment operations
   async getCommentsByPostId(postId: number): Promise<Comment[]> {
-    return db
-      .select()
-      .from(comments)
-      .where(eq(comments.postId, postId))
-      .orderBy(desc(comments.createdAt));
+    return prisma.comment.findMany({
+      where: { postId },
+      orderBy: { createdAt: 'desc' }
+    }) as Promise<Comment[]>;
   }
 
   async createComment(insertComment: InsertComment): Promise<Comment> {
-    const [comment] = await db
-      .insert(comments)
-      .values(insertComment)
-      .returning();
-    
-    // Update comment count
-    await db
-      .update(posts)
-      .set({ comments: db.raw(`${posts.name}.comments + 1`) })
-      .where(eq(posts.id, insertComment.postId));
-    
-    return comment;
+    // Begin transaction
+    return prisma.$transaction(async (tx) => {
+      // Create the comment
+      const comment = await tx.comment.create({
+        data: insertComment
+      });
+      
+      // Increment the post's comment count
+      await tx.post.update({
+        where: { id: insertComment.postId },
+        data: {
+          comments: {
+            increment: 1
+          }
+        }
+      });
+      
+      return comment as Comment;
+    });
   }
 
   async deleteComment(id: number): Promise<boolean> {
-    const [deletedComment] = await db
-      .delete(comments)
-      .where(eq(comments.id, id))
-      .returning({
-        id: comments.id,
-        postId: comments.postId
+    try {
+      // Find the comment to get the postId
+      const comment = await prisma.comment.findUnique({
+        where: { id },
+        select: { postId: true }
       });
-    
-    if (deletedComment) {
-      // Update comment count
-      await db
-        .update(posts)
-        .set({ comments: db.raw(`${posts.name}.comments - 1`) })
-        .where(eq(posts.id, deletedComment.postId));
+      
+      if (!comment) return false;
+      
+      // Begin transaction
+      await prisma.$transaction(async (tx) => {
+        // Delete the comment
+        await tx.comment.delete({
+          where: { id }
+        });
+        
+        // Decrement the post's comment count
+        await tx.post.update({
+          where: { id: comment.postId },
+          data: {
+            comments: {
+              decrement: 1
+            }
+          }
+        });
+      });
+      
       return true;
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      return false;
     }
-    
-    return false;
   }
 
   // Experience operations
   async getExperiencesByUserId(userId: number): Promise<Experience[]> {
-    return db
-      .select()
-      .from(experiences)
-      .where(eq(experiences.userId, userId))
-      .orderBy(desc(experiences.startDate));
+    return prisma.experience.findMany({
+      where: { userId },
+      orderBy: { startDate: 'desc' }
+    }) as Promise<Experience[]>;
   }
 
   async getExperienceById(id: number): Promise<Experience | undefined> {
-    const [experience] = await db
-      .select()
-      .from(experiences)
-      .where(eq(experiences.id, id));
-    return experience;
+    return prisma.experience.findUnique({
+      where: { id }
+    }) as Promise<Experience | undefined>;
   }
 
   async createExperience(insertExperience: InsertExperience): Promise<Experience> {
-    const [experience] = await db
-      .insert(experiences)
-      .values(insertExperience)
-      .returning();
-    return experience;
+    return prisma.experience.create({
+      data: insertExperience
+    }) as Promise<Experience>;
   }
 
   async updateExperience(id: number, data: Partial<InsertExperience>): Promise<Experience | undefined> {
-    const [updatedExperience] = await db
-      .update(experiences)
-      .set(data)
-      .where(eq(experiences.id, id))
-      .returning();
-    return updatedExperience;
+    return prisma.experience.update({
+      where: { id },
+      data
+    }) as Promise<Experience>;
   }
 
   async deleteExperience(id: number): Promise<boolean> {
-    const result = await db
-      .delete(experiences)
-      .where(eq(experiences.id, id))
-      .returning({ id: experiences.id });
-    return result.length > 0;
+    try {
+      await prisma.experience.delete({
+        where: { id }
+      });
+      return true;
+    } catch (error) {
+      console.error('Error deleting experience:', error);
+      return false;
+    }
   }
 
   // Education operations

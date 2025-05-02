@@ -74,6 +74,13 @@ export interface PostLike {
   createdAt: Date;
 }
 
+export interface PostLike {
+  id: number;
+  postId: number;
+  userId: number;
+  createdAt: Date;
+}
+
 export interface Message {
   id: number;
   senderId: number;
