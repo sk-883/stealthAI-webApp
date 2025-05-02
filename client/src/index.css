@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 20 14.3% 4.1%;
+  --muted: 60 4.8% 95.9%;
+  --muted-foreground: 25 5.3% 44.7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 14.3% 4.1%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 14.3% 4.1%;
+  --border: 20 5.9% 90%;
+  --input: 20 5.9% 90%;
+  --primary: 214 100% 40%;
+  --primary-foreground: 211 100% 99%;
+  --secondary: 60 4.8% 95.9%;
+  --secondary-foreground: 24 9.8% 10%;
+  --accent: 60 4.8% 95.9%;
+  --accent-foreground: 24 9.8% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  --ring: 20 14.3% 4.1%;
+  --radius: 0.5rem;
+
+  /* LinkedIn-specific colors */
+  --linkedin-blue: 214 100% 40%;
+  --linkedin-light-blue: 214 100% 97%;
+  --linkedin-dark: 0 0% 10%; 
+  --linkedin-medium: 0 0% 40%;
+  --linkedin-light: 0 0% 95%;
+  --linkedin-border: 0 0% 88%;
+
+  /* Chart colors */
+  --chart-1: 214 100% 40%;
+  --chart-2: 240 100% 60%;
+  --chart-3: 180 100% 40%;
+  --chart-4: 120 100% 40%;
+  --chart-5: 30 100% 50%;
+}
+
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --primary: 214 100% 60%;
+  --primary-foreground: 211 100% 99%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 240 4.9% 83.9%;
+  
+  /* LinkedIn-specific colors */
+  --linkedin-blue: 214 100% 60%;
+  --linkedin-light-blue: 214 100% 20%;
+  --linkedin-dark: 0 0% 98%;
+  --linkedin-medium: 0 0% 70%;
+  --linkedin-light: 0 0% 15%;
+  --linkedin-border: 0 0% 30%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-[#f3f2ef] text-[#191919];
+  }
+}
+
+.hover-shadow:hover {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15), 0 2px 3px rgba(0, 0, 0, 0.2);
+  transition: box-shadow 0.2s;
+}
+
+@layer components {
+  .linkedin-button {
+    @apply rounded-full px-4 py-1.5 font-medium text-sm transition-colors;
+  }
+
+  .linkedin-button-primary {
+    @apply bg-[#0a66c2] text-white hover:bg-[#004182];
+  }
+
+  .linkedin-button-secondary {
+    @apply border border-[#0a66c2] text-[#0a66c2] hover:bg-[#e7f3ff] hover:border-[#004182] hover:text-[#004182];
+  }
+
+  .linkedin-input {
+    @apply bg-[#f3f2ef] rounded-md py-2 pl-10 pr-4 w-full focus:outline-none focus:ring-2 focus:ring-[#0a66c2];
+  }
+
+  .linkedin-nav-link {
+    @apply text-[#666666] hover:text-[#191919] px-3 py-2 flex flex-col items-center text-xs;
+  }
+
+  .linkedin-icon {
+    @apply h-6 w-6;
+  }
+
+  .linkedin-card {
+    @apply bg-white rounded-lg border border-[#e0e0e0] overflow-hidden hover-shadow;
+  }
+}

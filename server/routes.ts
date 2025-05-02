@@ -1,0 +1,560 @@
+import type { Express, Request, Response } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { 
+  insertUserSchema, 
+  insertPostSchema, 
+  insertConnectionSchema, 
+  insertCommentSchema,
+  loginSchema 
+} from "@shared/schema";
+import session from "express-session";
+import MemoryStore from "memorystore";
+import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import bcrypt from "bcryptjs";
+import * as z from "zod";
+import { ZodError } from "zod-validation-error";
+
+const MemoryStoreSession = MemoryStore(session);
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up sessions and authentication
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "very-secret-key",
+      resave: false,
+      saveUninitialized: false,
+      cookie: { secure: process.env.NODE_ENV === "production" },
+      store: new MemoryStoreSession({
+        checkPeriod: 86400000, // prune expired entries every 24h
+      }),
+    })
+  );
+
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  // Passport configuration
+  passport.use(
+    new LocalStrategy(async (username, password, done) => {
+      try {
+        const user = await storage.getUserByUsername(username);
+        if (!user) {
+          return done(null, false, { message: "Incorrect username" });
+        }
+
+        // For development, allow simple password comparison
+        // In production, use bcrypt.compare
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+          return done(null, false, { message: "Incorrect password" });
+        }
+
+        return done(null, user);
+      } catch (error) {
+        return done(error);
+      }
+    })
+  );
+
+  passport.serializeUser((user: any, done) => {
+    done(null, user.id);
+  });
+
+  passport.deserializeUser(async (id: number, done) => {
+    try {
+      const user = await storage.getUser(id);
+      done(null, user);
+    } catch (error) {
+      done(error);
+    }
+  });
+
+  // Authentication middleware
+  const isAuthenticated = (req: Request, res: Response, next: Function) => {
+    if (req.isAuthenticated()) {
+      return next();
+    }
+    res.status(401).json({ message: "Unauthorized" });
+  };
+
+  // Helper function to validate request body against zod schema
+  const validateBody = <T extends z.ZodType>(schema: T) => {
+    return (req: Request, res: Response, next: Function) => {
+      try {
+        req.body = schema.parse(req.body);
+        next();
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({
+            message: "Validation error",
+            errors: error.errors,
+          });
+        }
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+    };
+  };
+
+  // Authentication routes
+  app.post(
+    "/api/auth/register",
+    validateBody(insertUserSchema.extend({
+      password: z.string().min(6)
+    })),
+    async (req, res) => {
+      try {
+        const { username, password, ...rest } = req.body;
+
+        // Check if user already exists
+        const existingUser = await storage.getUserByUsername(username);
+        if (existingUser) {
+          return res.status(400).json({ message: "Username already taken" });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create new user
+        const user = await storage.createUser({
+          username,
+          password: hashedPassword,
+          ...rest,
+        });
+
+        // Remove password from response
+        const { password: _, ...userWithoutPassword } = user;
+
+        req.login(user, (err) => {
+          if (err) {
+            return res.status(500).json({ message: "Error during login after registration" });
+          }
+          return res.status(201).json(userWithoutPassword);
+        });
+      } catch (error) {
+        console.error("Registration error:", error);
+        return res.status(500).json({ message: "Error registering user" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/auth/login",
+    validateBody(loginSchema),
+    (req, res, next) => {
+      passport.authenticate("local", (err, user, info) => {
+        if (err) {
+          return next(err);
+        }
+        if (!user) {
+          return res.status(401).json({ message: info.message || "Authentication failed" });
+        }
+        req.login(user, (err) => {
+          if (err) {
+            return next(err);
+          }
+          // Remove password from response
+          const { password, ...userWithoutPassword } = user;
+          return res.json(userWithoutPassword);
+        });
+      })(req, res, next);
+    }
+  );
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.logout(() => {
+      req.session.destroy(() => {
+        res.status(200).json({ message: "Logged out successfully" });
+      });
+    });
+  });
+
+  app.get("/api/auth/user", (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    // Remove password from response
+    const { password, ...userWithoutPassword } = req.user as any;
+    res.json(userWithoutPassword);
+  });
+
+  // User routes
+  app.get("/api/users", async (req, res) => {
+    try {
+      // Get all users (for demo purposes)
+      const users = await storage.getUsersForConnections(req.user ? (req.user as any).id : 0);
+      // Remove passwords from response
+      const usersWithoutPasswords = users.map(user => {
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Error fetching users" });
+    }
+  });
+
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Error fetching user" });
+    }
+  });
+
+  app.patch(
+    "/api/users/:id",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const userId = parseInt(req.params.id);
+        const currentUser = req.user as any;
+        
+        // Users can only update their own profile
+        if (currentUser.id !== userId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        
+        // Filter out password from updates through the API
+        const { password, ...updateData } = req.body;
+        
+        const updatedUser = await storage.updateUser(userId, updateData);
+        
+        if (!updatedUser) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        
+        // Remove password from response
+        const { password: _, ...userWithoutPassword } = updatedUser;
+        res.json(userWithoutPassword);
+      } catch (error) {
+        console.error("Error updating user:", error);
+        res.status(500).json({ message: "Error updating user" });
+      }
+    }
+  );
+
+  // Post routes
+  app.get("/api/posts", async (req, res) => {
+    try {
+      const posts = await storage.getPosts();
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching posts:", error);
+      res.status(500).json({ message: "Error fetching posts" });
+    }
+  });
+
+  app.get("/api/posts/:id", async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const post = await storage.getPostById(postId);
+      
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      res.json(post);
+    } catch (error) {
+      console.error("Error fetching post:", error);
+      res.status(500).json({ message: "Error fetching post" });
+    }
+  });
+
+  app.get("/api/users/:userId/posts", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const posts = await storage.getPostsByUserId(userId);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching user posts:", error);
+      res.status(500).json({ message: "Error fetching user posts" });
+    }
+  });
+
+  app.post(
+    "/api/posts",
+    isAuthenticated,
+    validateBody(insertPostSchema.omit({ userId: true })),
+    async (req, res) => {
+      try {
+        const userId = (req.user as any).id;
+        const post = await storage.createPost({
+          ...req.body,
+          userId,
+        });
+        res.status(201).json(post);
+      } catch (error) {
+        console.error("Error creating post:", error);
+        res.status(500).json({ message: "Error creating post" });
+      }
+    }
+  );
+
+  app.patch(
+    "/api/posts/:id",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const postId = parseInt(req.params.id);
+        const post = await storage.getPostById(postId);
+        
+        if (!post) {
+          return res.status(404).json({ message: "Post not found" });
+        }
+        
+        // Users can only update their own posts
+        if (post.userId !== (req.user as any).id) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        
+        const updatedPost = await storage.updatePost(postId, req.body);
+        res.json(updatedPost);
+      } catch (error) {
+        console.error("Error updating post:", error);
+        res.status(500).json({ message: "Error updating post" });
+      }
+    }
+  );
+
+  app.delete(
+    "/api/posts/:id",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const postId = parseInt(req.params.id);
+        const post = await storage.getPostById(postId);
+        
+        if (!post) {
+          return res.status(404).json({ message: "Post not found" });
+        }
+        
+        // Users can only delete their own posts
+        if (post.userId !== (req.user as any).id) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        
+        await storage.deletePost(postId);
+        res.status(204).end();
+      } catch (error) {
+        console.error("Error deleting post:", error);
+        res.status(500).json({ message: "Error deleting post" });
+      }
+    }
+  );
+
+  // Connection routes
+  app.get("/api/connections", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const connections = await storage.getConnections(userId);
+      res.json(connections);
+    } catch (error) {
+      console.error("Error fetching connections:", error);
+      res.status(500).json({ message: "Error fetching connections" });
+    }
+  });
+
+  app.get("/api/connections/pending", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const pendingConnections = await storage.getPendingConnections(userId);
+      res.json(pendingConnections);
+    } catch (error) {
+      console.error("Error fetching pending connections:", error);
+      res.status(500).json({ message: "Error fetching pending connections" });
+    }
+  });
+
+  app.post(
+    "/api/connections",
+    isAuthenticated,
+    validateBody(insertConnectionSchema.omit({ userId: true, status: true })),
+    async (req, res) => {
+      try {
+        const userId = (req.user as any).id;
+        
+        // Check if connection already exists
+        const existingConnections = await storage.getConnections(userId);
+        const alreadyConnected = existingConnections.some(
+          conn => conn.connectedUserId === req.body.connectedUserId
+        );
+        
+        if (alreadyConnected) {
+          return res.status(400).json({ message: "Connection already exists" });
+        }
+        
+        const connection = await storage.createConnection({
+          userId,
+          connectedUserId: req.body.connectedUserId,
+          status: "pending",
+        });
+        
+        res.status(201).json(connection);
+      } catch (error) {
+        console.error("Error creating connection:", error);
+        res.status(500).json({ message: "Error creating connection" });
+      }
+    }
+  );
+
+  app.patch(
+    "/api/connections/:id",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const connectionId = parseInt(req.params.id);
+        const userId = (req.user as any).id;
+        
+        // Get the connection
+        const connections = await storage.getPendingConnections(userId);
+        const connection = connections.find(conn => conn.id === connectionId);
+        
+        if (!connection) {
+          return res.status(404).json({ message: "Connection not found or not pending" });
+        }
+        
+        // Update the connection status
+        const { status } = req.body;
+        if (!status || !["accepted", "rejected"].includes(status)) {
+          return res.status(400).json({ message: "Invalid status" });
+        }
+        
+        const updatedConnection = await storage.updateConnectionStatus(connectionId, status);
+        
+        if (status === "accepted") {
+          // Create reverse connection
+          await storage.createConnection({
+            userId: connection.connectedUserId,
+            connectedUserId: connection.userId,
+            status: "accepted",
+          });
+        }
+        
+        res.json(updatedConnection);
+      } catch (error) {
+        console.error("Error updating connection:", error);
+        res.status(500).json({ message: "Error updating connection" });
+      }
+    }
+  );
+
+  app.delete(
+    "/api/connections/:id",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const connectionId = parseInt(req.params.id);
+        const userId = (req.user as any).id;
+        
+        // Get all connections for the user
+        const connections = await storage.getConnections(userId);
+        const connection = connections.find(conn => conn.id === connectionId);
+        
+        if (!connection) {
+          return res.status(404).json({ message: "Connection not found" });
+        }
+        
+        await storage.deleteConnection(connectionId);
+        
+        // Also delete the reverse connection
+        const userConnections = await storage.getConnections(connection.connectedUserId);
+        const reverseConnection = userConnections.find(conn => conn.connectedUserId === userId);
+        
+        if (reverseConnection) {
+          await storage.deleteConnection(reverseConnection.id);
+        }
+        
+        res.status(204).end();
+      } catch (error) {
+        console.error("Error deleting connection:", error);
+        res.status(500).json({ message: "Error deleting connection" });
+      }
+    }
+  );
+
+  // Comment routes
+  app.get("/api/posts/:postId/comments", async (req, res) => {
+    try {
+      const postId = parseInt(req.params.postId);
+      const comments = await storage.getCommentsByPostId(postId);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ message: "Error fetching comments" });
+    }
+  });
+
+  app.post(
+    "/api/posts/:postId/comments",
+    isAuthenticated,
+    validateBody(insertCommentSchema.omit({ userId: true, postId: true })),
+    async (req, res) => {
+      try {
+        const postId = parseInt(req.params.postId);
+        const userId = (req.user as any).id;
+        
+        const post = await storage.getPostById(postId);
+        if (!post) {
+          return res.status(404).json({ message: "Post not found" });
+        }
+        
+        const comment = await storage.createComment({
+          postId,
+          userId,
+          content: req.body.content,
+        });
+        
+        res.status(201).json(comment);
+      } catch (error) {
+        console.error("Error creating comment:", error);
+        res.status(500).json({ message: "Error creating comment" });
+      }
+    }
+  );
+
+  app.delete(
+    "/api/comments/:id",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const commentId = parseInt(req.params.id);
+        const userId = (req.user as any).id;
+        
+        // Get the comment
+        const comments = await storage.getCommentsByPostId(0); // This is inefficient, but works for now
+        const comment = comments.find(c => c.id === commentId);
+        
+        if (!comment) {
+          return res.status(404).json({ message: "Comment not found" });
+        }
+        
+        // Users can only delete their own comments
+        if (comment.userId !== userId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        
+        await storage.deleteComment(commentId);
+        res.status(204).end();
+      } catch (error) {
+        console.error("Error deleting comment:", error);
+        res.status(500).json({ message: "Error deleting comment" });
+      }
+    }
+  );
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
