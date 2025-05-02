@@ -219,7 +219,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Connection routes
   app.get("/api/connections", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).id;
+      // Since we removed authentication, we'll use a default user (1)
+      const userId = 1;
       const connections = await storage.getConnections(userId);
       res.json(connections);
     } catch (error) {
@@ -230,7 +231,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/connections/pending", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).id;
+      // Since we removed authentication, we'll use a default user (1)
+      const userId = 1;
       const pendingConnections = await storage.getPendingConnections(userId);
       res.json(pendingConnections);
     } catch (error) {
@@ -245,7 +247,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     validateBody(insertConnectionSchema.omit({ userId: true, status: true })),
     async (req, res) => {
       try {
-        const userId = (req.user as any).id;
+        // Since we removed authentication, we'll use a default user (1)
+        const userId = 1;
         
         // Check if connection already exists
         const existingConnections = await storage.getConnections(userId);
@@ -277,7 +280,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const connectionId = parseInt(req.params.id);
-        const userId = (req.user as any).id;
+        // Since we removed authentication, we'll use a default user (1)
+        const userId = 1;
         
         // Get the connection
         const connections = await storage.getPendingConnections(userId);
@@ -318,7 +322,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const connectionId = parseInt(req.params.id);
-        const userId = (req.user as any).id;
+        // Since we removed authentication, we'll use a default user (1)
+        const userId = 1;
         
         // Get all connections for the user
         const connections = await storage.getConnections(userId);
@@ -369,7 +374,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     validateBody(insertExperienceSchema.omit({ userId: true })),
     async (req, res) => {
       try {
-        const userId = (req.user as any).id;
+        // Since we removed authentication, we'll use a default user (1)
+        const userId = 1;
         
         const experience = await storage.createExperience({
           ...req.body,
@@ -390,7 +396,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const experienceId = parseInt(req.params.id);
-        const userId = (req.user as any).id;
+        // Since we removed authentication, we'll use a default user (1)
+        const userId = 1;
         
         // Get the experience to verify ownership
         const experience = await storage.getExperienceById(experienceId);
@@ -418,7 +425,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const experienceId = parseInt(req.params.id);
-        const userId = (req.user as any).id;
+        // Since we removed authentication, we'll use a default user (1)
+        const userId = 1;
         
         // Get the experience to verify ownership
         const experience = await storage.getExperienceById(experienceId);
