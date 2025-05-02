@@ -63,7 +63,7 @@ export async function register(userData: any): Promise<User> {
  */
 export async function getCurrentUser(): Promise<User | null> {
   try {
-    const response = await fetch("/api/auth/user", {
+    const response = await fetch("/api/user", {
       credentials: "include",
     });
     

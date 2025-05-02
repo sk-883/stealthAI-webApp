@@ -150,8 +150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     validateBody(insertPostSchema.omit({ userId: true })),
     async (req, res) => {
       try {
-        // Using a default user ID of 1 since we no longer have authentication
-        const userId = 1;
+        const userId = (req.user as any).id;
         const post = await storage.createPost({
           ...req.body,
           userId,
@@ -219,8 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Connection routes
   app.get("/api/connections", isAuthenticated, async (req, res) => {
     try {
-      // Since we removed authentication, we'll use a default user (1)
-      const userId = 1;
+      const userId = (req.user as any).id;
       const connections = await storage.getConnections(userId);
       res.json(connections);
     } catch (error) {
