@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { Prisma } from '@prisma/client';
+import { Prisma, User as PrismaUser, Post as PrismaPost, Connection as PrismaConnection, 
+  Comment as PrismaComment, Experience as PrismaExperience, Education as PrismaEducation, 
+  PostLike as PrismaPostLike } from '@prisma/client';
 
 // Define Prisma schema-based Zod validation schemas
 export const insertUserSchema = z.object({
@@ -65,19 +67,19 @@ export const loginSchema = z.object({
 });
 
 // Types from Prisma
-export type User = Prisma.UserGetPayload<{}>;
+export type User = PrismaUser;
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type Post = Prisma.PostGetPayload<{}>;
+export type Post = PrismaPost;
 export type InsertPost = z.infer<typeof insertPostSchema>;
-export type Connection = Prisma.ConnectionGetPayload<{}>;
+export type Connection = PrismaConnection;
 export type InsertConnection = z.infer<typeof insertConnectionSchema>;
-export type Comment = Prisma.CommentGetPayload<{}>;
+export type Comment = PrismaComment;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
-export type Experience = Prisma.ExperienceGetPayload<{}>;
+export type Experience = PrismaExperience;
 export type InsertExperience = z.infer<typeof insertExperienceSchema>;
-export type Education = Prisma.EducationGetPayload<{}>;
+export type Education = PrismaEducation;
 export type InsertEducation = z.infer<typeof insertEducationSchema>;
-export type PostLike = Prisma.PostLikeGetPayload<{}>;
+export type PostLike = PrismaPostLike;
 export type InsertPostLike = z.infer<typeof insertPostLikeSchema>;
 export type Login = z.infer<typeof loginSchema>;
 
