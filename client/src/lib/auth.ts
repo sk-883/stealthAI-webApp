@@ -8,7 +8,7 @@ import { User, LoginSchema } from "@shared/schema";
  */
 export async function login(credentials: LoginSchema): Promise<User> {
   try {
-    const response = await apiRequest("POST", "/api/auth/login", credentials);
+    const response = await apiRequest("POST", "/api/login", credentials);
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || "Login failed");
@@ -28,7 +28,7 @@ export async function login(credentials: LoginSchema): Promise<User> {
  */
 export async function logout(): Promise<void> {
   try {
-    await apiRequest("POST", "/api/auth/logout", {});
+    await apiRequest("POST", "/api/logout", {});
   } catch (error) {
     console.error("Logout error:", error);
     throw new Error("Failed to log out");
@@ -42,7 +42,7 @@ export async function logout(): Promise<void> {
  */
 export async function register(userData: any): Promise<User> {
   try {
-    const response = await apiRequest("POST", "/api/auth/register", userData);
+    const response = await apiRequest("POST", "/api/register", userData);
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || "Registration failed");
