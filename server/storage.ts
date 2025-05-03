@@ -9,7 +9,6 @@ import {
   type PostWithUser, type UserWithConnections, type UserWithExperiences, type UserWithEducations
 } from "@shared/schema";
 import { prisma } from "./prisma";
-import { Prisma } from "@prisma/client";
 
 export interface IStorage {
   // User operations
@@ -283,156 +282,136 @@ export class DatabaseStorage implements IStorage {
 
   // Education operations
   async getEducationsByUserId(userId: number): Promise<Education[]> {
-    return db
-      .select()
-      .from(educations)
-      .where(eq(educations.userId, userId))
-      .orderBy(desc(educations.startDate));
+    return prisma.education.findMany({
+      where: { userId },
+      orderBy: { startDate: 'desc' }
+    }) as Promise<Education[]>;
   }
 
   async getEducationById(id: number): Promise<Education | undefined> {
-    const [education] = await db
-      .select()
-      .from(educations)
-      .where(eq(educations.id, id));
-    return education;
+    return prisma.education.findUnique({
+      where: { id }
+    }) as Promise<Education | undefined>;
   }
 
   async createEducation(insertEducation: InsertEducation): Promise<Education> {
-    const [education] = await db
-      .insert(educations)
-      .values(insertEducation)
-      .returning();
-    return education;
+    return prisma.education.create({
+      data: insertEducation
+    }) as Promise<Education>;
   }
 
   async updateEducation(id: number, data: Partial<InsertEducation>): Promise<Education | undefined> {
-    const [updatedEducation] = await db
-      .update(educations)
-      .set(data)
-      .where(eq(educations.id, id))
-      .returning();
-    return updatedEducation;
+    return prisma.education.update({
+      where: { id },
+      data
+    }) as Promise<Education>;
   }
 
   async deleteEducation(id: number): Promise<boolean> {
-    const result = await db
-      .delete(educations)
-      .where(eq(educations.id, id))
-      .returning({ id: educations.id });
-    return result.length > 0;
+    try {
+      await prisma.education.delete({
+        where: { id }
+      });
+      return true;
+    } catch (error) {
+      console.error('Error deleting education:', error);
+      return false;
+    }
   }
 
   // Post Like operations
   async getLikesByPostId(postId: number): Promise<PostLike[]> {
-    return db
-      .select()
-      .from(postLikes)
-      .where(eq(postLikes.postId, postId));
+    return prisma.postLike.findMany({
+      where: { postId },
+    });
   }
 
-  async getLikeByPostAndUser(postId: number, userId: number): Promise<PostLike | undefined> {
-    const [like] = await db
-      .select()
-      .from(postLikes)
-      .where(
-        and(
-          eq(postLikes.postId, postId),
-          eq(postLikes.userId, userId)
-        )
-      );
+  /** Get the like record for a specific post+user, or undefined if none */
+  async getLikeByPostAndUser(
+    postId: number,
+    userId: number
+  ): Promise<PostLike | undefined> {
+    const like = await prisma.postLike.findFirst({
+      where: {
+        postId,
+        userId,
+      },
+    });
+    return like ?? undefined;
+  }
+
+  /** Create a like and increment the parent post’s like counter */
+  async createLike(insertLike: { postId: number; userId: number }): Promise<PostLike> {
+    const like = await prisma.postLike.create({
+      data: {
+        postId: insertLike.postId,
+        userId: insertLike.userId,
+      },
+    });
+
+    await prisma.post.update({
+      where: { id: insertLike.postId },
+      data: { likes: { increment: 1 } },
+    });
+
     return like;
   }
 
-  async createLike(insertLike: InsertPostLike): Promise<PostLike> {
-    const [like] = await db
-      .insert(postLikes)
-      .values(insertLike)
-      .returning();
-    
-    // Update like count
-    await db
-      .update(posts)
-      .set({ likes: db.raw(`${posts.name}.likes + 1`) })
-      .where(eq(posts.id, insertLike.postId));
-    
-    return like;
-  }
-
+  /** Delete a like by its ID and decrement the parent post’s like counter */
   async deleteLike(id: number): Promise<boolean> {
-    const [deletedLike] = await db
-      .delete(postLikes)
-      .where(eq(postLikes.id, id))
-      .returning({
-        id: postLikes.id,
-        postId: postLikes.postId
+    try {
+      const deleted = await prisma.postLike.delete({
+        where: { id },
       });
-    
-    if (deletedLike) {
-      // Update like count
-      await db
-        .update(posts)
-        .set({ likes: db.raw(`${posts.name}.likes - 1`) })
-        .where(eq(posts.id, deletedLike.postId));
+
+      await prisma.post.update({
+        where: { id: deleted.postId },
+        data: { likes: { decrement: 1 } },
+      });
+
       return true;
-    }
-    
-    return false;
-  }
-
-  // Extended operations
-  async getPostsWithUsers(): Promise<PostWithUser[]> {
-    const postsData = await db.select().from(posts).orderBy(desc(posts.createdAt));
-    const result: PostWithUser[] = [];
-    
-    for (const post of postsData) {
-      const [user] = await db.select().from(users).where(eq(users.id, post.userId));
-      if (user) {
-        result.push({
-          ...post,
-          user
-        });
+    } catch (err: any) {
+      // P2025 = “Record to delete does not exist”
+      if (err.code === 'P2025') {
+        return false;
       }
+      throw err;
     }
-    
-    return result;
   }
 
+  /** Fetch all posts in descending order including the author data */
+  async getPostsWithUsers(): Promise<(Post & { user: User })[]> {
+    return prisma.post.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { user: true },
+    });
+  }
+
+  /**
+   * Suggest up to 5 users for connection:
+   * – excludes yourself and anyone you’re already connected to (status="accepted")
+   */
   async getUsersForConnections(userId: number): Promise<User[]> {
-    // Get all user IDs that the current user is connected to
-    const userConnections = await db
-      .select({ connectedUserId: connections.connectedUserId })
-      .from(connections)
-      .where(
-        and(
-          eq(connections.userId, userId),
-          eq(connections.status, "accepted")
-        )
-      );
-    
-    // Get array of connected user IDs
-    const connectedUserIds = userConnections.map(conn => conn.connectedUserId);
-    
-    // Get all users who are not the current user and not already connected
-    if (connectedUserIds.length > 0) {
-      return db
-        .select()
-        .from(users)
-        .where(
-          and(
-            ne(users.id, userId),
-            db.raw(`${users.name}.id NOT IN (${connectedUserIds.join(', ')})`)
-          )
-        )
-        .limit(5);
-    } else {
-      // If no connections, return all users except current user
-      return db
-        .select()
-        .from(users)
-        .where(ne(users.id, userId))
-        .limit(5);
-    }
+    // 1) find all accepted connections
+    const conns = await prisma.connection.findMany({
+      where: {
+        userId,
+        status: 'accepted',
+      },
+      select: { connectedUserId: true },
+    });
+    const connectedIds = conns.map(c => c.connectedUserId);
+
+    // 2) build exclude list
+    const excludeIds = [userId, ...connectedIds];
+
+    // 3) find up to 5 users not in that list
+    return prisma.user.findMany({
+      where: {
+        id: { notIn: excludeIds },
+      },
+      take: 5,
+    });
   }
 }
 

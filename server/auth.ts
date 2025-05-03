@@ -7,7 +7,7 @@ import { promisify } from "util";
 import { PrismaStorage } from "./prisma-storage";
 import { User } from "../shared/schema";
 import connectPg from "connect-pg-simple";
-import { pool } from "./db";
+// import { pool } from "./db";
 
 declare global {
   namespace Express {
@@ -40,7 +40,7 @@ export function setupAuth(app: Express, storage: PrismaStorage) {
     resave: false,
     saveUninitialized: false,
     store: new PostgresSessionStore({
-      pool,
+      // pool,
       tableName: 'session',
       createTableIfMissing: true
     }),
