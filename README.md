@@ -1,4 +1,4 @@
-# LinkedUp - Professional Networking Platform
+# ConnectIn - Professional Networking Platform
 
 A LinkedIn clone with robust authentication, real-time messaging, notifications, and professional networking features.
 
