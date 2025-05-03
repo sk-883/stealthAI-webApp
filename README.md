@@ -1,6 +1,6 @@
 # ConnectIn - Professional Networking Platform
 
-A LinkedIn clone with robust authentication, real-time messaging, notifications, and professional networking features.
+A Platform with robust authentication, real-time messaging, notifications, and professional networking features.
 
 ## Tech Stack
 
@@ -49,6 +49,15 @@ A LinkedIn clone with robust authentication, real-time messaging, notifications,
    ```
 
 The application will be accessible at http://localhost:5000.
+
+## Run it locally through containers
+- docker pull vengeance883/connectin-app:latest && \
+- docker run -d \
+    --name connectin-app \
+    --env-file .env \
+    -p 5000:5000 \
+    vengeance883/connectin-app:latest
+
 
 ## Production Deployment with Docker
 
